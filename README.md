@@ -20,7 +20,7 @@ Actividad_integradora_1
 
 ### Unity
 - Abre Unity Hub, da click en agregar y selecciona la carpeta **Actividad_integradora_1**
-[Ingresa imagen aqui](#)
+![image](https://github.com/user-attachments/assets/292127e8-be5d-44de-ad19-85a76f032ebf)
 
 - En caso de no tener instalada la version correcta de Unity, se debe de instalar la version **2020.3.42f1**
 
