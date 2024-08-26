@@ -1,14 +1,10 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting.FullSerializer;
 using UnityEngine;
+using System.Collections.Generic;
+using System.Net.Mail;
 
 public class TileWorld : MonoBehaviour
 {
-    [Header("Art")]
-    [SerializeField] private Material tileMaterial;
-
+    [Header("Parameters")]
     [SerializeField] private int nTiles = 5;
     [SerializeField] private int mTiles = 5;
     [SerializeField] private float tileSize = 1;
@@ -17,27 +13,41 @@ public class TileWorld : MonoBehaviour
     [SerializeField] private Vector3 center = Vector3.zero;
 
     [Header("Base and Walls")]
-    [SerializeField] private Material baseMaterial;
-    [SerializeField] private Material wallMaterial;
     [SerializeField] private float wallHeight = 1f;
-    [SerializeField] private float baseThickness = 0.1f;
+    [SerializeField] private float wallGirth = 0.3f;
+    [SerializeField] private float baseThickness = 0.3f;
+
+    [Header("Materials")]
+    [SerializeField] private Material tileMaterial;
+    [SerializeField] private Material groundMaterial;
+    [SerializeField] private Material wallMaterial;
+
+
 
     private GameObject[,] tiles;
     private Vector3 bounds;
+    // We add all tile renderers to this list so they can be updated later
+    private List<MeshRenderer> tileRenderers = new List<MeshRenderer>();
+    private static bool tilesVisible = false;
 
     // Update is called once per frame
     private void Awake()
-    {   
-        GenerateBase();
+    {
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWalls();
+        GenerateFloor();
+    }
+
+    private void Update()
+    {
+        UpdateTileVisibility();
     }
 
     private void GenerateTiles(float tileSize, int nTiles, int mTiles)
-    {   
+    {
         //Center
         yOffset += transform.position.y;
-        bounds = new Vector3(nTiles/2 * tileSize, 0, nTiles / 2 * tileSize) + center;
+        bounds = new Vector3(nTiles * tileSize / 2, 0, mTiles * tileSize / 2) + center;
 
         tiles = new GameObject[nTiles, mTiles];
         for (int n = 0; n < nTiles; n++)
@@ -55,7 +65,8 @@ public class TileWorld : MonoBehaviour
         tileObject.transform.parent = transform;
         Mesh mesh = new();
         tileObject.AddComponent<MeshFilter>().mesh = mesh;
-        tileObject.AddComponent<MeshRenderer>().material = tileMaterial;
+        MeshRenderer tileRenderer = tileObject.AddComponent<MeshRenderer>();
+        tileRenderer.material = tileMaterial;
 
         float effectiveTileSize = tileSize - gap;
         float offset = gap / 2;
@@ -76,20 +87,23 @@ public class TileWorld : MonoBehaviour
         collider.size = new Vector3(effectiveTileSize, 0.1f, effectiveTileSize); // Adjust the Y value as needed
         collider.center = new Vector3(effectiveTileSize / 2 + offset, 0, effectiveTileSize / 2 + offset);
 
+        // Add tile renderer to array
+        tileRenderers.Add(tileRenderer);
+
         return tileObject;
     }
 
-    private void GenerateBase()
+    private void GenerateFloor()
     {
-        GameObject baseObject = new GameObject("Base");
-        baseObject.transform.parent = transform;
+        GameObject floorObject = new GameObject("Base");
+        floorObject.transform.parent = transform;
 
-        MeshFilter meshFilter = baseObject.AddComponent<MeshFilter>();
-        MeshRenderer meshRenderer = baseObject.AddComponent<MeshRenderer>();
+        MeshFilter meshFilter = floorObject.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = floorObject.AddComponent<MeshRenderer>();
 
         Mesh mesh = new Mesh();
         meshFilter.mesh = mesh;
-        meshRenderer.material = baseMaterial;
+        meshRenderer.material = groundMaterial;
 
         float totalWidth = nTiles * tileSize;
         float totalLength = mTiles * tileSize;
@@ -118,18 +132,28 @@ public class TileWorld : MonoBehaviour
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
 
-        baseObject.transform.position = new Vector3(-totalWidth / 2, 0, -totalLength / 2) + center;
+        floorObject.transform.position = new Vector3(-totalWidth / 2, 0, -totalLength / 2) + center;
     }
-
     private void GenerateWalls()
     {
         float totalWidth = nTiles * tileSize;
         float totalLength = mTiles * tileSize;
 
-        GenerateWall(new Vector3(-totalWidth / 2 - gap, 0, 0), new Vector3(gap, wallHeight, totalLength + 2 * gap));
-        GenerateWall(new Vector3(totalWidth / 2, 0, 0), new Vector3(gap, wallHeight, totalLength + 2 * gap));
-        GenerateWall(new Vector3(0, 0, -totalLength / 2 - gap), new Vector3(totalWidth + 2 * gap, wallHeight, gap));
-        GenerateWall(new Vector3(0, 0, totalLength / 2), new Vector3(totalWidth + 2 * gap, wallHeight, gap));
+        // Left wall
+        GenerateWall(new Vector3(-totalWidth / 2 - wallGirth / 2, wallHeight / 2, 0),
+                     new Vector3(wallGirth, wallHeight, totalLength + 2 * wallGirth));
+
+        // Right wall
+        GenerateWall(new Vector3(totalWidth / 2 + wallGirth / 2, wallHeight / 2, 0),
+                     new Vector3(wallGirth, wallHeight, totalLength + 2 * wallGirth));
+
+        // Back wall
+        GenerateWall(new Vector3(0, wallHeight / 2, -totalLength / 2 - wallGirth / 2),
+                     new Vector3(totalWidth + 2 * wallGirth, wallHeight, wallGirth));
+
+        // Front wall
+        GenerateWall(new Vector3(0, wallHeight / 2, totalLength / 2 + wallGirth / 2),
+                     new Vector3(totalWidth + 2 * wallGirth, wallHeight, wallGirth));
     }
 
     private void GenerateWall(Vector3 position, Vector3 size)
@@ -139,5 +163,21 @@ public class TileWorld : MonoBehaviour
         wall.transform.localPosition = position + center;
         wall.transform.localScale = size;
         wall.GetComponent<Renderer>().material = wallMaterial;
+    }
+
+    private void UpdateTileVisibility()
+    {
+        foreach (MeshRenderer renderer in tileRenderers)
+        {
+            if (renderer != null)
+            {
+                renderer.enabled = tilesVisible;
+            }
+        }
+    }
+
+    public static void ToggleTileVisibility()
+    {
+        tilesVisible = !tilesVisible;
     }
 }

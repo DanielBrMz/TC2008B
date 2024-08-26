@@ -8,7 +8,11 @@ public class ColliderVisibilityManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.V)) // Press 'V' to toggle visibility
         {
             Agent.ToggleColliderVisibility();
-            Debug.Log("Collider visibility toggled: " + (Agent.showColliders ? "On" : "Off"));
+        }
+
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            TileWorld.ToggleTileVisibility();
         }
     }
 }
