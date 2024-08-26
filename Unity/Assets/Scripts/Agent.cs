@@ -1,7 +1,13 @@
 using UnityEngine;
 
 public class Agent : MonoBehaviour
-{
+{   
+    [Header("Agent values")]
+    public int id;
+    public Vector2 pos;
+    public int[] cols;
+    
+
     [Header("Sensor configuration")]
     [SerializeField] private Vector3 sensorOffset = new Vector3(0f, 0.5f, 0f); // Offset from the agent's center
     [SerializeField] private float sensorDistance = 1f;

@@ -62,7 +62,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  - {fileID: 2100000, guid: 2921938675cf8e8668fc737e00c1be09, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -153,11 +153,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73febb637c51e7f7789a88d13c3f78c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  pos: {x: 0, y: 0}
+  cols: 
   sensorOffset: {x: 0, y: 0.5, z: 0}
   sensorDistance: 1
   sensorVerticalOffset: 0.5
   sensorSize: 1
-  sensorMaterial: {fileID: 2100000, guid: b364e47b4f0a5c8b882412bc778be6c1, type: 2}
+  sensorMaterial: {fileID: 2100000, guid: 09126d8a6da3d8dc7838411b1bf37a97, type: 2}
 --- !u!1 &7259812546037130962
 GameObject:
   m_ObjectHideFlags: 0
