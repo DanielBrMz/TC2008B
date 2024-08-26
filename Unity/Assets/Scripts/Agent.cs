@@ -2,24 +2,21 @@ using UnityEngine;
 
 public class Agent : MonoBehaviour
 {
-    [Header("Sensor values")]
+    [Header("Sensor configuration")]
     [SerializeField] private Vector3 sensorOffset = new Vector3(0f, 0.5f, 0f); // Offset from the agent's center
     [SerializeField] private float sensorDistance = 1f;
     [SerializeField] private float sensorVerticalOffset = 0.5f;
     [SerializeField] private float sensorSize = 1f;
     [SerializeField] private Material sensorMaterial; 
     
-
-    // This are unique to the agent
-    private Vector2 pos;
+    //Model values
     private readonly Transform orientation; // this will probably go unused unless we implement animations or models
     
 
-    // Sensor generation
+    // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
     private GameObject[] sensors;
     private int[] sensorValues; // 0: nothing, 1: another agent, 2: object
-
     public static bool showColliders = false;
 
     private readonly Vector3[] directions = new Vector3[]
