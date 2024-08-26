@@ -28,7 +28,7 @@ public class TileWorld : MonoBehaviour
     private Vector3 bounds;
     // We add all tile renderers to this list so they can be updated later
     private List<MeshRenderer> tileRenderers = new List<MeshRenderer>();
-    private static bool tilesVisible = true;
+    private static bool tilesVisible = false;
 
     // Update is called once per frame
     private void Awake()
