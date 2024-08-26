@@ -18,12 +18,11 @@ En esta actividad se desarrolló una simulación basada en agentes que consiste 
 ## Build
 - Clona el repositorio en tu dispositivo
 ```bash
-Actividad_integradora_1
+git clone https://github.com/DanielBrMz/TC2008B.git
 ```
 
 ### Unity
-- Abre Unity Hub, da click en agregar y selecciona la carpeta **Actividad_integradora_1**
-[Ingresa imagen aqui](#)
+- Abre Unity Hub, da click en agregar y selecciona la carpeta **Unity**
 
 - En caso de no tener instalada la version correcta de Unity, se debe de instalar la version **2020.3.42f1**
 
