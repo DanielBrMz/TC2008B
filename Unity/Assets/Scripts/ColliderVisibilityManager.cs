@@ -12,7 +12,7 @@ public class ColliderVisibilityManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.T))
         {
-            TileWorld.ToggleTileVisibility();
+            EnviromentEngine.ToggleTileVisibility();
         }
     }
 }

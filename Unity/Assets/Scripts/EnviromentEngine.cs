@@ -2,19 +2,19 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Net.Mail;
 
-public class TileWorld : MonoBehaviour
+public class EnviromentEngine : MonoBehaviour
 {
     [Header("Parameters")]
-    [SerializeField] private int nTiles = 5;
-    [SerializeField] private int mTiles = 5;
-    [SerializeField] private float tileSize = 1;
+    [SerializeField] private int nTiles = 10;
+    [SerializeField] private int mTiles = 10;
+    [SerializeField] private float tileSize = 3;
     [SerializeField] private float gap = 0.05f;
     [SerializeField] private float yOffset = 0.1f;
     [SerializeField] private Vector3 center = Vector3.zero;
 
     [Header("Base and Walls")]
-    [SerializeField] private float wallHeight = 1f;
-    [SerializeField] private float wallGirth = 0.3f;
+    [SerializeField] private float wallHeight = 5f;
+    [SerializeField] private float wallGirth = 0.4f;
     [SerializeField] private float baseThickness = 0.3f;
 
     [Header("Materials")]

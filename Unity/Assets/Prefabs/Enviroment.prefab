@@ -9,9 +9,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 218813827150668533}
-  - component: {fileID: 8616260438346267419}
+  - component: {fileID: 1492976209649619076}
   m_Layer: 0
-  m_Name: Tiles
+  m_Name: Enviroment
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -32,7 +32,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &8616260438346267419
+--- !u!114 &1492976209649619076
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -44,15 +44,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b9a76d6d3b9b0f28b04aa3c08fac419, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nTiles: 10
-  mTiles: 10
-  tileSize: 2
+  nTiles: 5
+  mTiles: 5
+  tileSize: 1
   gap: 0.05
   yOffset: 0.1
   center: {x: 0, y: 0, z: 0}
-  wallHeight: 4
+  wallHeight: 1
   wallGirth: 0.3
-  baseThickness: 0.1
-  tileMaterial: {fileID: 2100000, guid: 57a0ff389e7acf7829f07d00536a097f, type: 2}
-  groundMaterial: {fileID: 2100000, guid: 5b4cef496e45fddc69ff71f45f0451e9, type: 2}
-  wallMaterial: {fileID: 2100000, guid: 81a1ad358e634d051a90e7d524b40eae, type: 2}
+  baseThickness: 0.3
+  tileMaterial: {fileID: 0}
+  groundMaterial: {fileID: 0}
+  wallMaterial: {fileID: 0}
