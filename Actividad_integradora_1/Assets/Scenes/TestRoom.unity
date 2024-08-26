@@ -610,6 +610,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6128588384141374375, guid: 635724beb6cc0e00e8aa743563626a85, type: 3}
+      propertyPath: sensorMaterial
+      value: 
+      objectReference: {fileID: 2100000, guid: b364e47b4f0a5c8b882412bc778be6c1, type: 2}
     - target: {fileID: 6395324215237540279, guid: 635724beb6cc0e00e8aa743563626a85, type: 3}
       propertyPath: m_Name
       value: Agent

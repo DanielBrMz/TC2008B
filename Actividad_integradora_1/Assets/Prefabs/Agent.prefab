@@ -157,6 +157,7 @@ MonoBehaviour:
   sensorDistance: 1
   sensorVerticalOffset: 0.5
   sensorSize: 1
+  sensorMaterial: {fileID: 2100000, guid: b364e47b4f0a5c8b882412bc778be6c1, type: 2}
 --- !u!1 &7259812546037130962
 GameObject:
   m_ObjectHideFlags: 0

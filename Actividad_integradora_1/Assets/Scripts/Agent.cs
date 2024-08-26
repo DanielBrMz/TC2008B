@@ -1,15 +1,13 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 
 public class Agent : MonoBehaviour
 {
-    [Header("Engine values")]
+    [Header("Sensor values")]
     [SerializeField] private Vector3 sensorOffset = new Vector3(0f, 0.5f, 0f); // Offset from the agent's center
     [SerializeField] private float sensorDistance = 1f;
     [SerializeField] private float sensorVerticalOffset = 0.5f;
     [SerializeField] private float sensorSize = 1f;
+    [SerializeField] private Material sensorMaterial; 
     
 
     // This are unique to the agent
@@ -41,8 +39,6 @@ public class Agent : MonoBehaviour
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensor"), LayerMask.NameToLayer("Object"), false);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensor"), LayerMask.NameToLayer("Obstacle"), false);
     }
-
-
 
     private void Awake()
     {
@@ -103,7 +99,7 @@ public class Agent : MonoBehaviour
         visualizer.transform.localPosition = collider.center;
         visualizer.transform.localScale = Vector3.one * (sensorSize / 2 * 2);
         Destroy(visualizer.GetComponent<SphereCollider>()); // Remove colliders since they are not needed
-        visualizer.GetComponent<Renderer>().material.color = Color.cyan;
+        visualizer.transform.GetComponent<Renderer>().material = sensorMaterial;
         visualizer.SetActive(showColliders);
 
         return sensor;
