@@ -12,6 +12,9 @@ En esta actividad se desarrolló una simulación basada en agentes que consiste 
 - Descarga el archivo .zip de la version mas reciente
 - Descomprime el archivo y corre el ejecutable
 
+## Keybinds
+- `V` - Visualizar/Ocultar los sensores de los agentes
+
 ## Build
 - Clona el repositorio en tu dispositivo
 ```bash
