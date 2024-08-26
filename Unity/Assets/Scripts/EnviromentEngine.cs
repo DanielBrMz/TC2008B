@@ -1,10 +1,18 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Net.Mail;
+using System.Security.Cryptography.X509Certificates;
+using Unity.VisualScripting;
 
 public class EnviromentEngine : MonoBehaviour
 {
-    [Header("Parameters")]
+    [Header("Simulation Parameters")]
+    public int agents = 4;
+    public int items = 5;
+    public int obstacles = 0;
+
+
+    [Header("Eviroment Parameters")]
     [SerializeField] private int nTiles = 10;
     [SerializeField] private int mTiles = 10;
     [SerializeField] private float tileSize = 3;
@@ -42,6 +50,13 @@ public class EnviromentEngine : MonoBehaviour
     {
         UpdateTileVisibility();
     }
+
+
+    private void InitializeEnviroment()
+    {
+
+    }
+
 
     private void GenerateTiles(float tileSize, int nTiles, int mTiles)
     {
@@ -174,6 +189,32 @@ public class EnviromentEngine : MonoBehaviour
                 renderer.enabled = tilesVisible;
             }
         }
+    }
+
+    private int[,] GenerateUniqueRandomPositions()
+    {
+        int[,] randomPositions = new int[nTiles, mTiles];
+        HashSet<int[,]> usedPositions = new HashSet<int[,]>();
+        int i = 0, j = 0;
+
+        while (i < agents + items)
+        {
+            // Generate a new random position
+            int k = Random.Range(0, nTiles + 1);
+            int l = Random.Range(0, mTiles + 1);
+            int[,] newPosition = new int[k, l];
+
+            // Check if the position is already used
+            if (!usedPositions.Contains(newPosition))
+            {
+                // Add the new position to the array and the set of used positions
+                randomPositions[k, l] = 1;
+                usedPositions.Add(newPosition);
+                i++; j++;
+            }
+        }
+
+        return randomPositions;
     }
 
     public static void ToggleTileVisibility()
