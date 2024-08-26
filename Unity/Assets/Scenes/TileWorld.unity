@@ -312,11 +312,12 @@ MonoBehaviour:
   gap: 0.05
   yOffset: 0.1
   center: {x: 0, y: 0, z: 0}
-  wallHeight: 1
+  wallHeight: 4
+  wallGirth: 0.3
   baseThickness: 0.1
-  tileMaterial: {fileID: 2100000, guid: 304e73bef7f37338085e16b76f4fa9e7, type: 2}
-  baseMaterial: {fileID: 0}
-  wallMaterial: {fileID: 0}
+  tileMaterial: {fileID: 2100000, guid: 57a0ff389e7acf7829f07d00536a097f, type: 2}
+  groundMaterial: {fileID: 2100000, guid: 5b4cef496e45fddc69ff71f45f0451e9, type: 2}
+  wallMaterial: {fileID: 2100000, guid: 81a1ad358e634d051a90e7d524b40eae, type: 2}
 --- !u!4 &1332919315
 Transform:
   m_ObjectHideFlags: 0

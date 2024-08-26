@@ -14,11 +14,12 @@ public class TileWorld : MonoBehaviour
 
     [Header("Base and Walls")]
     [SerializeField] private float wallHeight = 1f;
-    [SerializeField] private float baseThickness = 0.1f;
+    [SerializeField] private float wallGirth = 0.3f;
+    [SerializeField] private float baseThickness = 0.3f;
 
     [Header("Materials")]
     [SerializeField] private Material tileMaterial;
-    [SerializeField] private Material baseMaterial;
+    [SerializeField] private Material groundMaterial;
     [SerializeField] private Material wallMaterial;
 
 
@@ -34,7 +35,7 @@ public class TileWorld : MonoBehaviour
     {
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWalls();
-        GenerateBase();
+        GenerateFloor();
     }
 
     private void Update()
@@ -92,17 +93,17 @@ public class TileWorld : MonoBehaviour
         return tileObject;
     }
 
-    private void GenerateBase()
+    private void GenerateFloor()
     {
-        GameObject baseObject = new GameObject("Base");
-        baseObject.transform.parent = transform;
+        GameObject floorObject = new GameObject("Base");
+        floorObject.transform.parent = transform;
 
-        MeshFilter meshFilter = baseObject.AddComponent<MeshFilter>();
-        MeshRenderer meshRenderer = baseObject.AddComponent<MeshRenderer>();
+        MeshFilter meshFilter = floorObject.AddComponent<MeshFilter>();
+        MeshRenderer meshRenderer = floorObject.AddComponent<MeshRenderer>();
 
         Mesh mesh = new Mesh();
         meshFilter.mesh = mesh;
-        meshRenderer.material = baseMaterial;
+        meshRenderer.material = groundMaterial;
 
         float totalWidth = nTiles * tileSize;
         float totalLength = mTiles * tileSize;
@@ -131,18 +132,28 @@ public class TileWorld : MonoBehaviour
         mesh.triangles = triangles;
         mesh.RecalculateNormals();
 
-        baseObject.transform.position = new Vector3(-totalWidth / 2, 0, -totalLength / 2) + center;
+        floorObject.transform.position = new Vector3(-totalWidth / 2, 0, -totalLength / 2) + center;
     }
-
     private void GenerateWalls()
     {
         float totalWidth = nTiles * tileSize;
         float totalLength = mTiles * tileSize;
 
-        GenerateWall(new Vector3(-totalWidth / 2 - gap, 0, 0), new Vector3(gap, wallHeight, totalLength + 2 * gap));
-        GenerateWall(new Vector3(totalWidth / 2, 0, 0), new Vector3(gap, wallHeight, totalLength + 2 * gap));
-        GenerateWall(new Vector3(0, 0, -totalLength / 2 - gap), new Vector3(totalWidth + 2 * gap, wallHeight, gap));
-        GenerateWall(new Vector3(0, 0, totalLength / 2), new Vector3(totalWidth + 2 * gap, wallHeight, gap));
+        // Left wall
+        GenerateWall(new Vector3(-totalWidth / 2 - wallGirth / 2, wallHeight / 2, 0),
+                     new Vector3(wallGirth, wallHeight, totalLength + 2 * wallGirth));
+
+        // Right wall
+        GenerateWall(new Vector3(totalWidth / 2 + wallGirth / 2, wallHeight / 2, 0),
+                     new Vector3(wallGirth, wallHeight, totalLength + 2 * wallGirth));
+
+        // Back wall
+        GenerateWall(new Vector3(0, wallHeight / 2, -totalLength / 2 - wallGirth / 2),
+                     new Vector3(totalWidth + 2 * wallGirth, wallHeight, wallGirth));
+
+        // Front wall
+        GenerateWall(new Vector3(0, wallHeight / 2, totalLength / 2 + wallGirth / 2),
+                     new Vector3(totalWidth + 2 * wallGirth, wallHeight, wallGirth));
     }
 
     private void GenerateWall(Vector3 position, Vector3 size)
@@ -158,7 +169,7 @@ public class TileWorld : MonoBehaviour
     {
         foreach (MeshRenderer renderer in tileRenderers)
         {
-            if(renderer != null)
+            if (renderer != null)
             {
                 renderer.enabled = tilesVisible;
             }
