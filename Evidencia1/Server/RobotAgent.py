@@ -5,7 +5,7 @@ import random
 from owlready2 import *
 
 # Create the ontology
-onto = get_ontology("http://example.org/robot-ontology.owl")
+onto = get_ontology("file://onto.owl")
 
 with onto:
     class Robot(Thing):
@@ -23,10 +23,21 @@ with onto:
     class Action(Thing):
         pass
 
-    class has_position = ObjectProperty(domain=Robot, range=Position)
-    class is_holding = ObjectProperty(domain=Robot, range=Object)
-    class has_perception = ObjectProperty(domain=Robot, range=Direction)
-    class can_perform = ObjectProperty(domain=Robot, range=Action)
+    class has_position(ObjectProperty):
+        domain = [Robot]
+        range = [Position]
+
+    class is_holding(ObjectProperty):
+        domain = [Robot]
+        range = [Object]
+
+    class has_perception(ObjectProperty):
+        domain = [Robot]
+        range = [Direction]
+
+    class can_perform(ObjectProperty):
+        domain = [Robot]
+        range = [Action]
 
     class Forward(Direction):
         pass
