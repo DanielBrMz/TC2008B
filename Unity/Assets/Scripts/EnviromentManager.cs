@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 public class EnviromentManager : MonoBehaviour
@@ -35,23 +36,17 @@ public class EnviromentManager : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(iterationDelay);
-
-            OnAgentAction?.Invoke(0, "MB");
-            OnAgentAction?.Invoke(1, "MF");
-
-            yield return new WaitForSeconds(iterationDelay);
-
-            OnAgentAction?.Invoke(1, "MB");
             OnAgentAction?.Invoke(0, "MF");
 
+
+
+            // foreach (int agentId in agentIds)
+            // {
+            //     char randomDirection = Utils.Direction2Name(Utils.directions[Random.Range(0, Utils.directions.Length)]);
+            //     string instruction = $"M{randomDirection}";
+            //     OnAgentAction?.Invoke(agentId, instruction);
+            // }
         }
     }
-
 }
 
-// foreach (int agentId in agentIds)
-// {
-//     char randomDirection = directions[Random.Range(0, directions.Length)];
-//     string instruction = $"M{randomDirection}";
-//     OnAgentAction?.Invoke(agentId, instruction);
-// }

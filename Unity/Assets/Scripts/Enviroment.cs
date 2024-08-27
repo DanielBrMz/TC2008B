@@ -53,9 +53,9 @@ public class Enviroment : MonoBehaviour
         InitializeStaticVariables();
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWarehouse();
-        // InitializeObjects();
-        SpawnAgent(new Vector2Int(3,8), 0);
-        SpawnAgent(new Vector2Int(3,5), 1);
+        // InitializeAllEntities();
+        SpawnAgent(new Vector2Int(3,0), 0);
+        // SpawnAgent(new Vector2Int(3,0), 1);
         InitializeEnvManager();
     }
 
@@ -135,7 +135,7 @@ public class Enviroment : MonoBehaviour
         mTiles = m;
     }
 
-    private void InitializeObjects()
+    private void InitializeAllEntities()
     {
         GameObject agentsWrapper = new("Agents");
         Vector2Int[] randomPositions = GenerateUniqueRandomPositions(agents + items);
@@ -236,10 +236,8 @@ public class Enviroment : MonoBehaviour
         GameObject warehouseWrapper = new GameObject("Warehouse");
         warehouseWrapper.transform.parent = transform;
 
-        // GenerateFloor().transform.parent = warehouseWrapper.transform;
-        GenerateWalls().transform.parent = warehouseWrapper.transform;
-
-        Utils.SetLayerRecursivelyByName(warehouseWrapper, "Obstacles");
+        GenerateFloor().transform.parent = warehouseWrapper.transform;
+        GenerateWalls().transform.parent = warehouseWrapper.transform; 
     }
 
 

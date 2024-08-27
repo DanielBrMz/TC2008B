@@ -15,6 +15,8 @@ public class Agent : MonoBehaviour
     {'L', 0},
     {'R', 0}
     };
+    public bool hasCollided = false;
+
 
     [Header("Sensor configuration")]
     [SerializeField] private Material sensorMaterial;
@@ -24,13 +26,13 @@ public class Agent : MonoBehaviour
 
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
+    private GameObject contactSensor;
     private SensorTrigger[] sensors;
     public static bool showColliders = false;
 
     // Enviroment
     private Vector3 targetPosition;
     private Coroutine moveCorutine;
-    private bool hasCollided = false; // TODO: ADD THIS TO THE JSON
 
     private void Awake()
     {
@@ -44,27 +46,11 @@ public class Agent : MonoBehaviour
     void Update()
     {
         UpdateSensorPositions();
+        UpdateContactSensorPosition();
         UpdateColliderVisibility();
     }
 
     // Utils
-    private readonly Vector2Int[] directions = new Vector2Int[]
-    {
-        Vector2Int.up,
-        Vector2Int.down,
-        Vector2Int.left,
-        Vector2Int.right
-    };
-
-    private char Direction2Name(Vector2Int direction)
-    {
-        if (direction == Vector2Int.up) return 'F';
-        if (direction == Vector2Int.down) return 'B';
-        if (direction == Vector2Int.left) return 'L';
-        if (direction == Vector2Int.right) return 'R';
-        return 'E'; // Default case, should not happen with your current directions array
-    }
-
     public static readonly char[] directionNames = { 'F', 'B', 'L', 'R' };
 
     private Vector2Int Name2Direction(char name)
@@ -119,7 +105,7 @@ public class Agent : MonoBehaviour
         switch (action)
         {
             case 'M':
-                Move(direction);
+                Move(direction, EnviromentManager.iterationDelay);
                 break;
             default:
                 Debug.Log($"Action not implemented yet: {instruction}");
@@ -128,28 +114,29 @@ public class Agent : MonoBehaviour
     }
 
     // Updaters
-    public void Move(char direction)
+    public void Move(char direction, float timeToMove)
     {
-
+        // Check for initial collision
         int value = IsColliding(direction);
-        Vector2Int newPos = pos += Name2Direction(direction);
-
+        Vector2Int newPos = pos + Name2Direction(direction);
         if (value != 0)
-            Debug.Log($"Ag:{id} colliding with {Col2Type(value)}");
-        else
-            {
-                hasCollided = true;
-                pos = newPos;
-            }
+        {
+            Debug.LogWarning($"Ag:{id} tried to move into an {Col2Type(value)}!");
+            return;
+        }
 
+        hasCollided = false;
+        pos = newPos;
+
+        // Calculate the new target position
         targetPosition = Enviroment.CalculateObjectPosition(pos);
 
+        // Handle coroutine for updating position
         if (moveCorutine != null)
         {
             StopCoroutine(moveCorutine);
         }
-
-        moveCorutine = StartCoroutine(UpdatePosition());
+        moveCorutine = StartCoroutine(UpdatePosition(direction, timeToMove));
     }
 
     private int IsColliding(char direction)
@@ -163,20 +150,27 @@ public class Agent : MonoBehaviour
             return 0;
     }
 
-    private IEnumerator UpdatePosition()
+    private IEnumerator UpdatePosition(char direction, float timeToMove)
     {
         Vector3 startPos = transform.position;
         float elapsedTime = 0f;
-
-        while (elapsedTime < EnviromentManager.iterationDelay)
+        while (elapsedTime < timeToMove)
         {
             elapsedTime += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsedTime / EnviromentManager.iterationDelay);
+            float t = Mathf.Clamp01(elapsedTime / timeToMove);
             transform.position = Vector3.Lerp(startPos, targetPosition, t);
+
+            if (hasCollided)
+            {   
+                StopCoroutine(moveCorutine);
+                Debug.LogError($"Ag:{id} collided with another agent!");
+                float remainingTime = timeToMove - elapsedTime;
+                Move(Utils.OppositeDir(direction), remainingTime);
+                yield break;
+            }
+
             yield return null;
-
         }
-
         transform.position = targetPosition;
         moveCorutine = null;
     }
@@ -195,6 +189,11 @@ public class Agent : MonoBehaviour
             sensors[i].transform.position = transform.position;
             // sensors[i].transform.rotation = transform.rotation;
         }
+    }
+
+    private void UpdateContactSensorPosition()
+    {
+        contactSensor.transform.position = transform.position + new Vector3(0f,1.5f,0f);
     }
 
 
@@ -229,12 +228,12 @@ public class Agent : MonoBehaviour
         sensorsContainer.transform.SetParent(transform);
         sensorsContainer.transform.localPosition = Vector3.zero;
 
-        sensors = new SensorTrigger[directions.Length];
+        sensors = new SensorTrigger[Utils.directions.Length];
 
-        sensors[0] = GenerateSensor("Sens:F", directions[0]);
-        sensors[1] = GenerateSensor("Sens:B", directions[1]);
-        sensors[2] = GenerateSensor("Sens:L", directions[2]);
-        sensors[3] = GenerateSensor("Sens:R", directions[3]);
+        sensors[0] = GenerateSensor("Sens:F", Utils.directions[0]);
+        sensors[1] = GenerateSensor("Sens:B", Utils.directions[1]);
+        sensors[2] = GenerateSensor("Sens:L", Utils.directions[2]);
+        sensors[3] = GenerateSensor("Sens:R", Utils.directions[3]);
 
         foreach (SensorTrigger sensor in sensors)
         {
@@ -242,6 +241,14 @@ public class Agent : MonoBehaviour
         }
 
         Utils.SetLayerRecursivelyByName(sensorsContainer, "Sensors");
+
+        GameObject contactSensorWrapper = new GameObject("ContactSensor");
+
+        contactSensor = GenerateContactSensor("ConSensor");
+        contactSensor.transform.parent = contactSensorWrapper.transform;
+        contactSensor.layer = LayerMask.NameToLayer("Contact");
+
+        Utils.SetLayerRecursivelyByName(contactSensorWrapper, "Contact");
     }
 
     private SensorTrigger GenerateSensor(string name, Vector2Int direction)
@@ -253,12 +260,12 @@ public class Agent : MonoBehaviour
 
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
-        collider.radius = Enviroment.tileSize / 2;
-        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 0.4f) + new Vector3(0, 0.5f, 0);
+        collider.radius = (Enviroment.tileSize / 2);
+        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 0.5f) + new Vector3(0, 0.5f, 0);
 
         SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
         trigger.parentAgent = this;
-        trigger.direction = Direction2Name(direction);
+        trigger.direction = Utils.Direction2Name(direction);
 
         // Crate visualizer
         GameObject visualizer = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -272,13 +279,30 @@ public class Agent : MonoBehaviour
         return trigger;
     }
 
+    private GameObject GenerateContactSensor(string name)
+    {
+        GameObject sensor = new GameObject(name);
+        sensor.transform.SetParent(transform);
+        sensor.layer = LayerMask.NameToLayer("Obstacles");
+
+        BoxCollider collider = sensor.AddComponent<BoxCollider>();
+        collider.isTrigger = true;
+        collider.size = new Vector3(0.8f,0.8f,0.8f);
+        collider.center = Vector3.zero;
+
+        ContactTrigger trigger = collider.AddComponent<ContactTrigger>();
+        trigger.parentAgent = this;
+        
+        return sensor;
+    }
+
     private Vector3 FlatDir23DDir(Vector2Int direction)
     {
         if (direction == Vector2Int.up) return Vector3.forward;
         if (direction == Vector2Int.down) return Vector3.back;
         if (direction == Vector2Int.left) return Vector3.left;
         if (direction == Vector2Int.right) return Vector3.right;
-        return Vector3.zero; // Default case, should not happen with your current directions array
+        return Vector3.zero; // Default case, should not happen with your current Utils.directions array
     }
 
 }
