@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class Object : MonoBehaviour
@@ -10,11 +12,12 @@ public class Object : MonoBehaviour
     [Header("Prefabs")]
     [SerializeField] private GameObject[] models;
 
-    private static bool itemsVisible = false;
+    private static bool colliderVisible = false;
 
     private bool isGrabbed = false;
     private Transform grabber;
 
+    private SemaphoreSlim grabLock = new SemaphoreSlim(1, 1);
     private bool isBeingGrabbed = false;
 
 
@@ -30,21 +33,31 @@ public class Object : MonoBehaviour
 
     private void UpdateObjectColliderVisibility()
     {
-        transform.GetComponent<Renderer>().enabled = itemsVisible;
+        transform.GetComponent<Renderer>().enabled = colliderVisible;
     }
 
     public static void ToggleItemColliderVisibility()
     {
-        itemsVisible = !itemsVisible;
+        colliderVisible = !colliderVisible;
     }
 
-    public bool TryStartGrab()
+    public async Task<bool> TryGrab()
     {
-        if (isBeingGrabbed) return false;
-        isBeingGrabbed = true;
-        return true;
+        await grabLock.WaitAsync();
+        try
+        {
+            if (isBeingGrabbed)
+            {
+                return false;
+            }
+            isBeingGrabbed = true;
+            return true;
+        }
+        finally
+        {
+            grabLock.Release();
+        }
     }
-
     public void CancelGrab()
     {
         isBeingGrabbed = false;
@@ -79,7 +92,7 @@ public class Object : MonoBehaviour
     private void LateUpdate() {
         if (isGrabbed && grabber != null)
         {
-            transform.position = grabber.position + Vector3.up * (size / 2);
+            transform.position = grabber.position + Vector3.up * (size + 1f) ;
         }
     }
 }

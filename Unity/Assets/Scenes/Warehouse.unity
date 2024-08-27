@@ -266,11 +266,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: m
-      value: 20
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: n
-      value: 20
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: items
@@ -283,6 +283,10 @@ PrefabInstance:
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: mTiles
       value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: nItems
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nTiles
@@ -343,7 +347,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: maxIterationDuration
-      value: 4
+      value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 7518530826794642438, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: m_LocalPosition.x

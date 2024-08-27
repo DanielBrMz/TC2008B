@@ -1,12 +1,10 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.AI;
 
 public class Agent : MonoBehaviour
-{   
+{
     private TaskCompletionSource<bool> actionCompletionSource;
 
     [Header("Agent values")]
@@ -19,7 +17,7 @@ public class Agent : MonoBehaviour
     {'L', 0},
     {'R', 0}
     };
-    
+
     public bool hasObject = false;
     public bool hasCollided = false;
 
@@ -88,10 +86,10 @@ public class Agent : MonoBehaviour
         switch (action[0])
         {
             case 'M':
-                Move(action[1], EnvironmentManager.iterationDuration);
+                await Move(action[1], EnvironmentManager.iterationDuration);
                 break;
             case 'G':
-                Grab(action[1], EnvironmentManager.iterationDuration);
+                await Grab(action[1], EnvironmentManager.iterationDuration);
                 break;
             // case 'D':
             //     Drop(action[1], EnvironmentManager.iterationDuration);
@@ -111,7 +109,7 @@ public class Agent : MonoBehaviour
     }
 
     // Updaters
-    public void Move(char direction, float timeToMove)
+    public async Task Move(char direction, float timeToMove)
     {
         // Check for initial collision
         int value = IsColliding(direction);
@@ -128,41 +126,120 @@ public class Agent : MonoBehaviour
         // Calculate the new target position
         targetPosition = Enviroment.CalculateObjectPosition(pos);
 
-        // Handle coroutine for updating position
-        if (moveCorutine != null)
+        Vector3 startPos = transform.position;
+        float elapsedTime = 0f;
+        while (elapsedTime < EnvironmentManager.iterationDuration)
         {
-            StopCoroutine(moveCorutine);
+            elapsedTime += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsedTime / timeToMove);
+            transform.position = Vector3.Lerp(startPos, targetPosition, t);
+            if (hasCollided)
+            {
+                float remainingTime = timeToMove - elapsedTime;
+                await Move(Utils.OppositeDir(direction), remainingTime);
+                return;
+            }
+            await Task.Yield();
         }
-        moveCorutine = StartCoroutine(UpdatePosition(direction, timeToMove));
+        transform.position = targetPosition;
     }
 
-    public void Grab(char direction, float timeToMove)
+    public async Task Grab(char dir, float timeToMove)
     {
         if (hasObject)
         {
-            Debug.LogWarning("Already holding an object");
+            Debug.LogWarning($"Ag:{id} Already holding an object");
             return;
         }
-        Collider directionCollider = sensors[direction].transform.GetComponent<Collider>();
+
+        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
         Object objectToGrab = FindObjectInCollider(directionCollider);
-        if (objectToGrab != null)
+
+        if (objectToGrab == null)
         {
-            if (objectToGrab.TryStartGrab())
+            Debug.LogError($"Ag:{id} No object to grab in direction {dir}");
+            return;
+        }
+
+        if (!await objectToGrab.TryGrab())
+        {
+            Debug.LogWarning($"Ag:{id} Failed to grab object, it was already being grabbed");
+            return;
+        }
+
+        Vector3 objStartPos = objectToGrab.transform.position;
+        Vector3 agStartPos = transform.position;
+        Vector2Int newPos = pos + Name2Direction(dir);
+        Vector3 targetPosition = Enviroment.CalculateObjectPosition(newPos);
+        Vector3 aboveAgentPos = targetPosition + Vector3.up * grabHeight;
+
+        float elapsedTime = 0f;
+        bool grabSuccessful = true;
+
+        try
+        {
+            while (elapsedTime < EnvironmentManager.iterationDuration)
             {
-                pos += Name2Direction(direction);
-                targetPosition = Enviroment.CalculateObjectPosition(pos);
-                grabObjCorutine = StartCoroutine(GrabObjCorutine(objectToGrab, EnvironmentManager.iterationDuration, direction));
+                float remainingTime = EnvironmentManager.iterationDuration - elapsedTime;
+                float t = Mathf.Clamp01(elapsedTime / timeToMove);
+
+                objectToGrab.transform.position = Vector3.Lerp(objStartPos, aboveAgentPos, t);
+                transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
+
+                if (!objectToGrab.gameObject.activeSelf)
+                {
+                    grabSuccessful = false;
+                    break;
+                }
+
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+
+                if (elapsedTime >= timeToMove)
+                    break;
+            }
+
+            if (grabSuccessful)
+            {
+                objectToGrab.transform.position = aboveAgentPos;
+                transform.position = targetPosition;
+                hasObject = true;
+                grabbedObject = objectToGrab;
+                objectToGrab.ObjGrab(transform);
+                pos = newPos;
             }
             else
             {
-                Debug.LogWarning($"Ag:{id} Object is already being grabbed by another agent");
+                float remainingTime = Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime);
+                await MoveBack(agStartPos, remainingTime);
+                Debug.LogWarning($"Ag:{id} Failed to grab object, it was deactivated during grab attempt");
             }
         }
-        else
+        finally
         {
-            Debug.LogError($"Ag:{id} No object to grab {direction}");
+            if (!grabSuccessful)
+            {
+                objectToGrab.CancelGrab();
+            }
         }
     }
+
+    private async Task MoveBack(Vector3 startPos, float duration)
+    {
+        float elapsedTime = 0f;
+        Vector3 currentPos = transform.position;
+
+        while (elapsedTime < duration)
+        {
+            float t = elapsedTime / duration;
+            transform.position = Vector3.Lerp(currentPos, startPos, t);
+            elapsedTime += Time.deltaTime;
+            await Task.Yield();
+        }
+
+        transform.position = startPos;
+    }
+
 
     private Object FindObjectInCollider(Collider directionCollider)
     {
@@ -180,52 +257,6 @@ public class Agent : MonoBehaviour
         return null;
     }
 
-    private IEnumerator GrabObjCorutine(Object obj, float timeToMove, char dir)
-    {
-        Vector3 objStartPos = obj.transform.position;
-        Vector3 agStartPos = transform.position;
-        Vector3 aboveAgentPos = transform.position + Vector3.up * grabHeight;
-        float elapsedTime = 0f;
-        bool grabSuccessful = true;
-
-        while (elapsedTime < EnvironmentManager.iterationDuration)
-        {
-            elapsedTime += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsedTime / timeToMove);
-            obj.transform.position = Vector3.Lerp(objStartPos, aboveAgentPos, t);
-            transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
-
-            // Check if the object is still available (hasn't been taken by another agent)
-            if (!obj.gameObject.activeSelf || obj.transform.parent != null)
-            {
-                grabSuccessful = false;
-                break;
-            }
-
-            yield return null;
-        }
-
-        if (grabSuccessful)
-        {
-            obj.transform.position = aboveAgentPos;
-            transform.position = targetPosition;
-            hasObject = true;
-            grabbedObject = obj;
-            obj.ObjGrab(transform);
-        }
-        else
-        {
-            // Move back to starting position
-            transform.position = agStartPos;
-            pos -= Name2Direction(dir); // Revert position change
-            Debug.LogWarning($"Ag:{id} Failed to grab object, it was taken by another agent");
-            obj.CancelGrab();
-        }
-
-        grabObjCorutine = null;
-        ActionCompleted();
-    }
-
     private int IsColliding(char direction)
     {
         int value = cols[direction];
@@ -235,32 +266,6 @@ public class Agent : MonoBehaviour
         else
             return 0;
     }
-
-    private IEnumerator UpdatePosition(char direction, float timeToMove)
-    {
-        Vector3 startPos = transform.position;
-        float elapsedTime = 0f;
-        while (elapsedTime < timeToMove)
-        {
-            elapsedTime += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsedTime / timeToMove);
-            transform.position = Vector3.Lerp(startPos, targetPosition, t);
-
-            if (hasCollided)
-            {
-                StopCoroutine(moveCorutine);
-                float remainingTime = timeToMove - elapsedTime;
-                Move(Utils.OppositeDir(direction), remainingTime);
-                yield break;
-            }
-
-            yield return null;
-        }
-        transform.position = targetPosition;
-        moveCorutine = null;
-        ActionCompleted();
-    }
-
 
     public void UpdateSensorValue(char direction, int value)
     {
@@ -279,8 +284,8 @@ public class Agent : MonoBehaviour
     public Task<Dictionary<char, int>> GetSensorData()
     {
         Dictionary<char, int> newCols = new Dictionary<char, int>();
-        foreach(KeyValuePair<char, SensorTrigger> sensor in sensors)
-        {   
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
+        {
             char direction = sensor.Key;
             SensorTrigger trigger = sensor.Value;
             newCols[direction] = trigger.GetSensorValue();
