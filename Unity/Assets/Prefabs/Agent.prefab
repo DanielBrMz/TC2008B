@@ -118,8 +118,6 @@ GameObject:
   - component: {fileID: 2581798282179710187}
   - component: {fileID: 6128588384141374375}
   - component: {fileID: 3484296127298731681}
-  - component: {fileID: 1730992511806108893}
-  - component: {fileID: 2105395278922300823}
   m_Layer: 7
   m_Name: Agent
   m_TagString: Untagged
@@ -187,40 +185,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 112
   m_CollisionDetection: 0
---- !u!135 &1730992511806108893
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6395324215237540279}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 1
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.4
-  m_Center: {x: 0, y: 1, z: 0}
---- !u!114 &2105395278922300823
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6395324215237540279}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3d411bb658d92f642af062b12aad27e7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  parentAgent: {fileID: 6128588384141374375}
 --- !u!1 &7259812546037130962
 GameObject:
   m_ObjectHideFlags: 0

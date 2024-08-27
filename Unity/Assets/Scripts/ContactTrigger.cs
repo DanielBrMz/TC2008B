@@ -3,14 +3,37 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class ContactTrigger : MonoBehaviour
-{  
+{
     public Agent parentAgent;
 
-    private void OnTriggerEnter(Collider other) {
-        parentAgent.hasCollided = true;
+    private void OnTriggerEnter(Collider other)
+    {
+        BoxCollider boxCollider = other.GetComponent<BoxCollider>();
+        if (boxCollider != null)
+        {
+            // The collider is a BoxCollider, proceed with your logic
+            Debug.Log("Collided with a BoxCollider!");
+            parentAgent.hasCollided = true;
+            // Your logic here
+        }
+        else
+        {
+            // The collider is not a BoxCollider, you can choose to ignore it or handle differently
+            Debug.Log("Collided with a non-BoxCollider!");
+        }
     }
 
-    private void OnTriggerExit(Collider other) {
-        parentAgent.hasCollided = false;
+    private void OnTriggerExit(Collider other)
+    {
+        BoxCollider boxCollider = other.GetComponent<BoxCollider>();
+        if (boxCollider != null)
+        {
+            parentAgent.hasCollided = false;
+            // Your logic here
+        }
+        else
+        {
+            Debug.Log("Collided with a non-BoxCollider!");
+        }
     }
 }

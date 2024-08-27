@@ -54,8 +54,7 @@ public class Enviroment : MonoBehaviour
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWarehouse();
         // InitializeAllEntities();
-        SpawnAgent(new Vector2Int(3,0), 0);
-        // SpawnAgent(new Vector2Int(3,0), 1);
+        SpawnAgent(new Vector2Int(5,5), 0);
         InitializeEnvManager();
     }
 

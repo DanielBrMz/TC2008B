@@ -217,6 +217,7 @@ public class Agent : MonoBehaviour
         // Sensors only interact with Agents, Objects, and Obstacles
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Tiles"), true);
+        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Contact"), true);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Obstacles"), false);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Stacks"), false);
     }
@@ -243,10 +244,8 @@ public class Agent : MonoBehaviour
         Utils.SetLayerRecursivelyByName(sensorsContainer, "Sensors");
 
         GameObject contactSensorWrapper = new GameObject("ContactSensor");
-
         contactSensor = GenerateContactSensor("ConSensor");
         contactSensor.transform.parent = contactSensorWrapper.transform;
-        contactSensor.layer = LayerMask.NameToLayer("Contact");
 
         Utils.SetLayerRecursivelyByName(contactSensorWrapper, "Contact");
     }
@@ -260,8 +259,8 @@ public class Agent : MonoBehaviour
 
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
-        collider.radius = (Enviroment.tileSize / 2);
-        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 0.5f) + new Vector3(0, 0.5f, 0);
+        collider.radius = 0.1f;
+        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 1f) + new Vector3(0, 0.5f, 0);
 
         SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
         trigger.parentAgent = this;
@@ -271,7 +270,7 @@ public class Agent : MonoBehaviour
         GameObject visualizer = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         visualizer.transform.SetParent(sensor.transform);
         visualizer.transform.localPosition = collider.center;
-        visualizer.transform.localScale = Vector3.one * (Enviroment.tileSize / 2 * 2);
+        visualizer.transform.localScale = Vector3.one * (collider.radius * 2);
         Destroy(visualizer.GetComponent<SphereCollider>()); // Remove colliders since they are not needed
         visualizer.transform.GetComponent<Renderer>().material = sensorMaterial;
         visualizer.SetActive(showColliders);

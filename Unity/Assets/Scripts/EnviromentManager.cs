@@ -36,7 +36,7 @@ public class EnviromentManager : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(iterationDelay);
-            OnAgentAction?.Invoke(0, "MF");
+            OnAgentAction?.Invoke(0, "MR");
 
 
 
