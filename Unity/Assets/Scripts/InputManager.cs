@@ -15,5 +15,10 @@ public class ColliderVisibilityManager : MonoBehaviour
         {
             Enviroment.ToggleTileVisibility();
         }
+
+        if (Input.GetKeyDown(KeyCode.C))
+        {
+            Object.ToggleItemColliderVisibility();
+        }
     }
 }

@@ -1,10 +1,12 @@
-using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
 
 public class Agent : MonoBehaviour
 {
+    private TaskCompletionSource<bool> actionCompletionSource;
+
     [Header("Agent values")]
     public int id;
     public Vector2Int pos;
@@ -16,6 +18,13 @@ public class Agent : MonoBehaviour
     {'R', 0}
     };
 
+    public bool hasObject = false;
+    public bool hasCollided = false;
+
+    private Object grabbedObject;
+
+    [SerializeField] private float grabHeight = 2.5f;
+
     [Header("Sensor configuration")]
     [SerializeField] private Material sensorMaterial;
 
@@ -24,47 +33,32 @@ public class Agent : MonoBehaviour
 
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
-    private SensorTrigger[] sensors;
+    private GameObject contactSensor;
+    private Dictionary<char, SensorTrigger> sensors;
     public static bool showColliders = false;
 
     // Enviroment
     private Vector3 targetPosition;
     private Coroutine moveCorutine;
-    private bool hasCollided = false; // TODO: ADD THIS TO THE JSON
+    private Coroutine grabObjCorutine;
+
 
     private void Awake()
     {
 
         SetupCollisionMatrix();
         GenerateSensors();
-        EnviromentManager.OnAgentAction += ActionManager;
     }
 
 
     void Update()
     {
         UpdateSensorPositions();
+        UpdateContactSensorPosition();
         UpdateColliderVisibility();
     }
 
     // Utils
-    private readonly Vector2Int[] directions = new Vector2Int[]
-    {
-        Vector2Int.up,
-        Vector2Int.down,
-        Vector2Int.left,
-        Vector2Int.right
-    };
-
-    private char Direction2Name(Vector2Int direction)
-    {
-        if (direction == Vector2Int.up) return 'F';
-        if (direction == Vector2Int.down) return 'B';
-        if (direction == Vector2Int.left) return 'L';
-        if (direction == Vector2Int.right) return 'R';
-        return 'E'; // Default case, should not happen with your current directions array
-    }
-
     public static readonly char[] directionNames = { 'F', 'B', 'L', 'R' };
 
     private Vector2Int Name2Direction(char name)
@@ -85,76 +79,186 @@ public class Agent : MonoBehaviour
         }
     }
 
-    private string Col2Type(int col)
+    public async Task ExecuteAction(string action)
     {
-        switch (col)
-        {
-            case 1:
-                return "Object";
-            case 2:
-                return "Obstacle";
-            case 3:
-                return "Stack";
-            default:
-                return "Undefined";
-        }
-    }
+        actionCompletionSource = new TaskCompletionSource<bool>();
 
-    public void ActionManager(int agentId, string instruction)
-    {
-        if (id != agentId)
-        {
-            return;
-        }
-
-        if (instruction.Length != 2)
-        {
-            Debug.LogError($"Invalid instruction string format: {instruction}.");
-            return;
-        }
-
-        char action = instruction[0];
-        char direction = instruction[1];
-
-        switch (action)
+        switch (action[0])
         {
             case 'M':
-                Move(direction);
+                await Move(action[1], EnvironmentManager.iterationDuration);
                 break;
+            case 'G':
+                await Grab(action[1], EnvironmentManager.iterationDuration);
+                break;
+            // case 'D':
+            //     Drop(action[1], EnvironmentManager.iterationDuration);
+            //     break;
             default:
-                Debug.Log($"Action not implemented yet: {instruction}");
+                Debug.LogError($"Unknown action: {action}");
+                actionCompletionSource.SetResult(true);
                 break;
         }
+
+        await actionCompletionSource.Task;
+    }
+
+    public void ActionCompleted()
+    {
+        actionCompletionSource?.TrySetResult(true);
     }
 
     // Updaters
-    public void Move(char direction)
+    public async Task Move(char direction, float timeToMove)
     {
-
+        // Check for initial collision
         int value = IsColliding(direction);
-        Vector2Int newPos = pos += Name2Direction(direction);
-
+        Vector2Int newPos = pos + Name2Direction(direction);
         if (value != 0)
-            Debug.Log($"Ag:{id} colliding with {Col2Type(value)}");
-        else
-            {
-                hasCollided = true;
-                pos = newPos;
-            }
-
-        targetPosition = Enviroment.CalculateObjectPosition(pos);
-
-        if (moveCorutine != null)
         {
-            StopCoroutine(moveCorutine);
+            Debug.LogWarning($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
+            return;
         }
 
-        moveCorutine = StartCoroutine(UpdatePosition());
+        hasCollided = false;
+        pos = newPos;
+
+        // Calculate the new target position
+        targetPosition = Enviroment.CalculateObjectPosition(pos);
+
+        Vector3 startPos = transform.position;
+        float elapsedTime = 0f;
+        while (elapsedTime < EnvironmentManager.iterationDuration)
+        {
+            elapsedTime += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsedTime / timeToMove);
+            transform.position = Vector3.Lerp(startPos, targetPosition, t);
+            if (hasCollided)
+            {
+                float remainingTime = timeToMove - elapsedTime;
+                await Move(Utils.OppositeDir(direction), remainingTime);
+                return;
+            }
+            await Task.Yield();
+        }
+        transform.position = targetPosition;
+    }
+
+    public async Task Grab(char dir, float timeToMove)
+    {
+        if (hasObject)
+        {
+            Debug.LogWarning($"Ag:{id} Already holding an object");
+            return;
+        }
+
+        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
+        Object objectToGrab = FindObjectInCollider(directionCollider);
+
+        if (objectToGrab == null)
+        {
+            Debug.LogError($"Ag:{id} No object to grab in direction {dir}");
+            return;
+        }
+
+        if (!await objectToGrab.TryGrab())
+        {
+            Debug.LogWarning($"Ag:{id} Failed to grab object, it was already being grabbed");
+            return;
+        }
+
+        Vector3 objStartPos = objectToGrab.transform.position;
+        Vector3 agStartPos = transform.position;
+        Vector2Int newPos = pos + Name2Direction(dir);
+        Vector3 targetPosition = Enviroment.CalculateObjectPosition(newPos);
+        Vector3 aboveAgentPos = targetPosition + Vector3.up * grabHeight;
+
+        float elapsedTime = 0f;
+        bool grabSuccessful = true;
+
+        try
+        {
+            while (elapsedTime < EnvironmentManager.iterationDuration)
+            {
+                float remainingTime = EnvironmentManager.iterationDuration - elapsedTime;
+                float t = Mathf.Clamp01(elapsedTime / timeToMove);
+
+                objectToGrab.transform.position = Vector3.Lerp(objStartPos, aboveAgentPos, t);
+                transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
+
+                if (!objectToGrab.gameObject.activeSelf)
+                {
+                    grabSuccessful = false;
+                    break;
+                }
+
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+
+                if (elapsedTime >= timeToMove)
+                    break;
+            }
+
+            if (grabSuccessful)
+            {
+                objectToGrab.transform.position = aboveAgentPos;
+                transform.position = targetPosition;
+                hasObject = true;
+                grabbedObject = objectToGrab;
+                objectToGrab.ObjGrab(transform);
+                pos = newPos;
+            }
+            else
+            {
+                float remainingTime = Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime);
+                await MoveBack(agStartPos, remainingTime);
+                Debug.LogWarning($"Ag:{id} Failed to grab object, it was deactivated during grab attempt");
+            }
+        }
+        finally
+        {
+            if (!grabSuccessful)
+            {
+                objectToGrab.CancelGrab();
+            }
+        }
+    }
+
+    private async Task MoveBack(Vector3 startPos, float duration)
+    {
+        float elapsedTime = 0f;
+        Vector3 currentPos = transform.position;
+
+        while (elapsedTime < duration)
+        {
+            float t = elapsedTime / duration;
+            transform.position = Vector3.Lerp(currentPos, startPos, t);
+            elapsedTime += Time.deltaTime;
+            await Task.Yield();
+        }
+
+        transform.position = startPos;
+    }
+
+
+    private Object FindObjectInCollider(Collider directionCollider)
+    {
+        Collider[] colliders = Physics.OverlapBox(directionCollider.bounds.center, directionCollider.bounds.extents, directionCollider.transform.rotation, LayerMask.GetMask("Objects"));
+
+        foreach (Collider collider in colliders)
+        {
+            Object obj = collider.GetComponent<Object>();
+            if (obj != null)
+            {
+                return obj;
+            }
+        }
+
+        return null;
     }
 
     private int IsColliding(char direction)
     {
-
         int value = cols[direction];
 
         if (value != 0)
@@ -163,46 +267,44 @@ public class Agent : MonoBehaviour
             return 0;
     }
 
-    private IEnumerator UpdatePosition()
-    {
-        Vector3 startPos = transform.position;
-        float elapsedTime = 0f;
-
-        while (elapsedTime < EnviromentManager.iterationDelay)
-        {
-            elapsedTime += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsedTime / EnviromentManager.iterationDelay);
-            transform.position = Vector3.Lerp(startPos, targetPosition, t);
-            yield return null;
-
-        }
-
-        transform.position = targetPosition;
-        moveCorutine = null;
-    }
-
-
     public void UpdateSensorValue(char direction, int value)
     {
         cols[direction] = value;
-        Debug.Log($"Cols for Ag:{id}:" + string.Join(", ", cols));
     }
 
     private void UpdateSensorPositions()
     {
-        for (int i = 0; i < sensors.Length; i++)
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
         {
-            sensors[i].transform.position = transform.position;
-            // sensors[i].transform.rotation = transform.rotation;
+            SensorTrigger trigger = sensor.Value;
+            trigger.transform.position = transform.position;
         }
     }
 
+    public Task<Dictionary<char, int>> GetSensorData()
+    {
+        Dictionary<char, int> newCols = new Dictionary<char, int>();
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
+        {
+            char direction = sensor.Key;
+            SensorTrigger trigger = sensor.Value;
+            newCols[direction] = trigger.GetSensorValue();
+        }
+
+        return Task.FromResult(newCols);
+    }
+
+    private void UpdateContactSensorPosition()
+    {
+        contactSensor.transform.position = transform.position + new Vector3(0f, 1.5f, 0f);
+    }
 
     private void UpdateColliderVisibility()
     {
-        foreach (SensorTrigger sensor in sensors)
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
         {
-            sensor.transform.GetChild(0).gameObject.SetActive(showColliders);
+            SensorTrigger sensorTrigger = sensor.Value;
+            sensorTrigger.transform.GetChild(0).gameObject.SetActive(showColliders);
         }
     }
 
@@ -218,6 +320,7 @@ public class Agent : MonoBehaviour
         // Sensors only interact with Agents, Objects, and Obstacles
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Tiles"), true);
+        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Contact"), true);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Obstacles"), false);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Stacks"), false);
     }
@@ -229,19 +332,26 @@ public class Agent : MonoBehaviour
         sensorsContainer.transform.SetParent(transform);
         sensorsContainer.transform.localPosition = Vector3.zero;
 
-        sensors = new SensorTrigger[directions.Length];
+        sensors = new Dictionary<char, SensorTrigger>();
 
-        sensors[0] = GenerateSensor("Sens:F", directions[0]);
-        sensors[1] = GenerateSensor("Sens:B", directions[1]);
-        sensors[2] = GenerateSensor("Sens:L", directions[2]);
-        sensors[3] = GenerateSensor("Sens:R", directions[3]);
+        sensors['F'] = GenerateSensor("Sens:F", Utils.directions[0]);
+        sensors['B'] = GenerateSensor("Sens:B", Utils.directions[1]);
+        sensors['L'] = GenerateSensor("Sens:L", Utils.directions[2]);
+        sensors['R'] = GenerateSensor("Sens:R", Utils.directions[3]);
 
-        foreach (SensorTrigger sensor in sensors)
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
         {
-            sensor.transform.parent = sensorsContainer.transform;
+            SensorTrigger trigger = sensor.Value;
+            trigger.transform.parent = sensorsContainer.transform;
         }
 
         Utils.SetLayerRecursivelyByName(sensorsContainer, "Sensors");
+
+        GameObject contactSensorWrapper = new GameObject("ContactSensor");
+        contactSensor = GenerateContactSensor("ConSensor");
+        contactSensor.transform.parent = contactSensorWrapper.transform;
+
+        Utils.SetLayerRecursivelyByName(contactSensorWrapper, "Contact");
     }
 
     private SensorTrigger GenerateSensor(string name, Vector2Int direction)
@@ -253,23 +363,41 @@ public class Agent : MonoBehaviour
 
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
-        collider.radius = Enviroment.tileSize / 2;
-        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 0.4f) + new Vector3(0, 0.5f, 0);
+        collider.radius = (Enviroment.tileSize / 2) - 0.2f;
+        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 1f) + new Vector3(0, 0.5f, 0);
 
         SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
         trigger.parentAgent = this;
-        trigger.direction = Direction2Name(direction);
+        trigger.direction = Utils.Direction2Name(direction);
 
         // Crate visualizer
         GameObject visualizer = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         visualizer.transform.SetParent(sensor.transform);
         visualizer.transform.localPosition = collider.center;
-        visualizer.transform.localScale = Vector3.one * (Enviroment.tileSize / 2 * 2);
+        visualizer.transform.localScale = Vector3.one * (collider.radius * 2);
         Destroy(visualizer.GetComponent<SphereCollider>()); // Remove colliders since they are not needed
         visualizer.transform.GetComponent<Renderer>().material = sensorMaterial;
         visualizer.SetActive(showColliders);
 
         return trigger;
+    }
+
+    private GameObject GenerateContactSensor(string name)
+    {
+        GameObject sensor = new GameObject(name);
+        sensor.transform.SetParent(transform);
+        sensor.layer = LayerMask.NameToLayer("Obstacles");
+
+        BoxCollider collider = sensor.AddComponent<BoxCollider>();
+        collider.isTrigger = true;
+        collider.size = new Vector3(0.8f, 0.8f, 0.8f);
+        collider.center = Vector3.zero;
+        collider.transform.rotation = Quaternion.Euler(0, 45, 0);
+
+        ContactTrigger trigger = collider.AddComponent<ContactTrigger>();
+        trigger.parentAgent = this;
+
+        return sensor;
     }
 
     private Vector3 FlatDir23DDir(Vector2Int direction)
@@ -278,7 +406,7 @@ public class Agent : MonoBehaviour
         if (direction == Vector2Int.down) return Vector3.back;
         if (direction == Vector2Int.left) return Vector3.left;
         if (direction == Vector2Int.right) return Vector3.right;
-        return Vector3.zero; // Default case, should not happen with your current directions array
+        return Vector3.zero; // Default case, should not happen with your current Utils.directions array
     }
 
 }

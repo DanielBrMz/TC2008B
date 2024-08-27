@@ -156,6 +156,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   id: 0
   pos: {x: 0, y: 0}
+  hasCollided: 0
   sensorMaterial: {fileID: 2100000, guid: 09126d8a6da3d8dc7838411b1bf37a97, type: 2}
 --- !u!54 &3484296127298731681
 Rigidbody:
@@ -182,7 +183,7 @@ Rigidbody:
   m_UseGravity: 0
   m_IsKinematic: 0
   m_Interpolate: 0
-  m_Constraints: 0
+  m_Constraints: 112
   m_CollisionDetection: 0
 --- !u!1 &7259812546037130962
 GameObject:

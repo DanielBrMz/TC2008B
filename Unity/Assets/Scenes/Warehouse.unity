@@ -265,20 +265,36 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: m
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: n
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: items
-      value: 0
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: agents
-      value: 1
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: mTiles
       value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: nItems
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nTiles
       value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: nAgents
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: wallHeight
@@ -288,6 +304,10 @@ PrefabInstance:
       propertyPath: AgentPrefab
       value: 
       objectReference: {fileID: 6395324215237540279, guid: 635724beb6cc0e00e8aa743563626a85, type: 3}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: objectPrefab
+      value: 
+      objectReference: {fileID: 6411895935394950588, guid: 1feecb4577df3fa86b4e077214730428, type: 3}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: tileMaterial
       value: 
@@ -323,7 +343,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: delay
-      value: 0.5
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
+      propertyPath: maxIterationDuration
+      value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 7518530826794642438, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: m_LocalPosition.x

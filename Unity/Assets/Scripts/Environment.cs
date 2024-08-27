@@ -7,26 +7,27 @@ using Unity.VisualScripting;
 public class Enviroment : MonoBehaviour
 {
     [Header("Simulation Parameters")]
-    public int agents = 1;
-    public int items = 5;
+    public int nAgents = 5;
+    public int nItems = 20;
     public int obstacles = 0;
 
 
     [Header("Object Parameters")]
     public GameObject AgentPrefab;
+    public GameObject objectPrefab;
 
 
     [Header("Eviroment Parameters")]
-    public static float tileSize = 3;
-    public static float yOffset = 0.1f;
-    [SerializeField] private int n = 10;
-    [SerializeField] private int m = 10;
+    [SerializeField] private float tileDimensions = 3f;
+    [SerializeField] private float verticalOffset = 0.1f;
+    [SerializeField] private int n = 20;
+    [SerializeField] private int m = 20;
     // The gap affects the tile size which then translates to more space between sensors, higher gap means smaller tiles, keep the value low
     [SerializeField] private float gap = 0.05f;
-    [SerializeField] private Vector3 center = Vector3.zero;
+    private Vector3 center = Vector3.zero;
 
     [Header("Base and Walls")]
-    [SerializeField] private float wallHeight = 4f;
+    [SerializeField] private float wallHeight = 3f;
     [SerializeField] private float wallGirth = 0.4f;
     [SerializeField] private float baseThickness = 0.3f;
 
@@ -42,10 +43,17 @@ public class Enviroment : MonoBehaviour
     // We add all tile renderers to this list so they can be updated later
     private List<MeshRenderer> tileRenderers = new List<MeshRenderer>();
     private static bool tilesVisible = false;
-    private EnviromentManager envManager;
+    private EnvironmentManager envManager;
 
     private static int nTiles;
     private static int mTiles;
+
+    public static float tileSize;
+    public static float yOffset;
+
+    private GameObject[] items;
+
+    public static List<Agent> agents;
 
     // Update is called once per frame
     private void Awake()
@@ -53,9 +61,7 @@ public class Enviroment : MonoBehaviour
         InitializeStaticVariables();
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWarehouse();
-        // InitializeObjects();
-        SpawnAgent(new Vector2Int(3,8), 0);
-        SpawnAgent(new Vector2Int(3,5), 1);
+        InitializeAllEntities();
         InitializeEnvManager();
     }
 
@@ -119,44 +125,58 @@ public class Enviroment : MonoBehaviour
     // Setup
     private void InitializeEnvManager()
     {
-        envManager = FindObjectOfType<EnviromentManager>();
+        envManager = FindObjectOfType<EnvironmentManager>();
         if (envManager == null)
         {
             GameObject managerObject = new GameObject("EnviromentManager");
-            envManager = managerObject.AddComponent<EnviromentManager>();
+            envManager = managerObject.AddComponent<EnvironmentManager>();
         }
 
-        envManager.Initialize(agents);
+        envManager.Initialize();
     }
 
     private void InitializeStaticVariables()
     {
         nTiles = n;
         mTiles = m;
+        tileSize = tileDimensions;
+        yOffset = verticalOffset;
     }
 
-    private void InitializeObjects()
+    private void InitializeAllEntities()
     {
+        agents = new List<Agent>(nAgents);
+        items = new GameObject[nItems];
         GameObject agentsWrapper = new("Agents");
-        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(agents + items);
-        Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
+        GameObject itemsWrapper = new("Objects");
+        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems);
 
         int currentAgentId = 0;
-        // int currentObjectId = 0;
+        int currentObjectId = 0;
 
         foreach (Vector2Int vectorPos in randomPositions)
         {
-            if (currentAgentId < agents)
+            if (currentAgentId < nAgents)
             {
-                SpawnAgent(vectorPos, currentAgentId).transform.parent = agentsWrapper.transform;
+                GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
+                // GameObject agObject = SpawnAgent(new Vector2Int(5,0), currentAgentId);
+                agObject.transform.parent = agentsWrapper.transform;
+                Agent newAgent = agObject.GetComponent<Agent>();
+                agents.Add(newAgent);
                 currentAgentId++;
             }
-            // else if (currentObjectId < items)
-            // {
-            //     SpawnObject(i, j);
-            //     objectCount -= 1;
-            // }
+            else if (currentObjectId < nItems)
+            {
+                GameObject newObject = SpawnObject(vectorPos, currentObjectId);
+                // GameObject newObject = SpawnObject(new Vector2Int(5,1), currentObjectId);
+                newObject.transform.parent = itemsWrapper.transform;
+                items[currentObjectId] = newObject;
+                currentObjectId++;
+            }
         }
+
+        Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
+        Utils.SetLayerRecursivelyByName(itemsWrapper, "Objects");
     }
 
     private GameObject SpawnAgent(Vector2Int pos, int id)
@@ -172,6 +192,16 @@ public class Enviroment : MonoBehaviour
         }
 
         return agentObject;
+    }
+
+    private GameObject SpawnObject(Vector2Int pos, int id)
+    {
+        Vector3 position = CalculateObjectPosition(pos);
+        GameObject objectInstance = Instantiate(objectPrefab, Vector3.zero, Quaternion.identity);
+        float size = objectInstance.GetComponent<Object>().size;
+        objectInstance.transform.position = position + new Vector3(0f, size / 2, 0f);
+        objectInstance.name = $"Obj:{id}";
+        return objectInstance;
     }
 
     private void GenerateTiles(float tileSize, int nTiles, int mTiles)
@@ -236,10 +266,8 @@ public class Enviroment : MonoBehaviour
         GameObject warehouseWrapper = new GameObject("Warehouse");
         warehouseWrapper.transform.parent = transform;
 
-        // GenerateFloor().transform.parent = warehouseWrapper.transform;
+        GenerateFloor().transform.parent = warehouseWrapper.transform;
         GenerateWalls().transform.parent = warehouseWrapper.transform;
-
-        Utils.SetLayerRecursivelyByName(warehouseWrapper, "Obstacles");
     }
 
 
