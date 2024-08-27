@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7674967871842022656}
   - component: {fileID: 8846501031426080327}
   - component: {fileID: 5047428715877362072}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -117,7 +117,8 @@ GameObject:
   m_Component:
   - component: {fileID: 2581798282179710187}
   - component: {fileID: 6128588384141374375}
-  m_Layer: 0
+  - component: {fileID: 3484296127298731681}
+  m_Layer: 7
   m_Name: Agent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -153,13 +154,36 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73febb637c51e7f7789a88d13c3f78c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  id: 0
   pos: {x: 0, y: 0}
-  cols: 
-  sensorOffset: {x: 0, y: 0.5, z: 0}
-  sensorDistance: 1
-  sensorVerticalOffset: 0.5
-  sensorSize: 1
   sensorMaterial: {fileID: 2100000, guid: 09126d8a6da3d8dc7838411b1bf37a97, type: 2}
+--- !u!54 &3484296127298731681
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6395324215237540279}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 0
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &7259812546037130962
 GameObject:
   m_ObjectHideFlags: 0
@@ -169,7 +193,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4670315009478020714}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: PositionRotation
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -269,6 +269,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: agents
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: mTiles
       value: 10
       objectReference: {fileID: 0}

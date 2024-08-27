@@ -1,21 +1,22 @@
 using System.Collections;
-using System.Runtime.InteropServices;
+using System.Collections.Generic;
 using Unity.VisualScripting;
-using UnityEditor;
 using UnityEngine;
-using UnityEngine.AI;
 
 public class Agent : MonoBehaviour
 {
     [Header("Agent values")]
     public int id;
     public Vector2Int pos;
-    public int[] cols;
-
+    public Dictionary<char, int> cols = new Dictionary<char, int>
+    {
+    {'F', 0},
+    {'B', 0},
+    {'L', 0},
+    {'R', 0}
+    };
 
     [Header("Sensor configuration")]
-    [SerializeField] private Vector3 sensorOffset = new Vector3(0f, 0.5f, 0f); // Offset from the agent's center
-    // [SerializeField] private float sensorVerticalOffset = 0.5f;
     [SerializeField] private Material sensorMaterial;
 
     //Model values
@@ -24,16 +25,16 @@ public class Agent : MonoBehaviour
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
     private SensorTrigger[] sensors;
-    private int[] sensorValues; // 0: nothing, 1: another agent, 2: object
     public static bool showColliders = false;
 
     // Enviroment
     private Vector3 targetPosition;
     private Coroutine moveCorutine;
-
+    private bool hasCollided = false; // TODO: ADD THIS TO THE JSON
 
     private void Awake()
     {
+
         SetupCollisionMatrix();
         GenerateSensors();
         EnviromentManager.OnAgentAction += ActionManager;
@@ -55,13 +56,13 @@ public class Agent : MonoBehaviour
         Vector2Int.right
     };
 
-    private string Direction2Name(Vector2Int direction)
+    private char Direction2Name(Vector2Int direction)
     {
-        if (direction == Vector2Int.up) return "F";
-        if (direction == Vector2Int.down) return "B";
-        if (direction == Vector2Int.left) return "L";
-        if (direction == Vector2Int.right) return "R";
-        return ""; // Default case, should not happen with your current directions array
+        if (direction == Vector2Int.up) return 'F';
+        if (direction == Vector2Int.down) return 'B';
+        if (direction == Vector2Int.left) return 'L';
+        if (direction == Vector2Int.right) return 'R';
+        return 'E'; // Default case, should not happen with your current directions array
     }
 
     public static readonly char[] directionNames = { 'F', 'B', 'L', 'R' };
@@ -81,6 +82,21 @@ public class Agent : MonoBehaviour
             default:
                 Debug.LogError($"Invalid direction name: {name}.");
                 return pos;
+        }
+    }
+
+    private string Col2Type(int col)
+    {
+        switch (col)
+        {
+            case 1:
+                return "Object";
+            case 2:
+                return "Obstacle";
+            case 3:
+                return "Stack";
+            default:
+                return "Undefined";
         }
     }
 
@@ -114,12 +130,18 @@ public class Agent : MonoBehaviour
     // Updaters
     public void Move(char direction)
     {
-        // if (!IsColliding(direction))
-        // {
 
-        // }
+        int value = IsColliding(direction);
+        Vector2Int newPos = pos += Name2Direction(direction);
 
-        pos += Name2Direction(direction);
+        if (value != 0)
+            Debug.Log($"Ag:{id} colliding with {Col2Type(value)}");
+        else
+            {
+                hasCollided = true;
+                pos = newPos;
+            }
+
         targetPosition = Enviroment.CalculateObjectPosition(pos);
 
         if (moveCorutine != null)
@@ -130,10 +152,16 @@ public class Agent : MonoBehaviour
         moveCorutine = StartCoroutine(UpdatePosition());
     }
 
-    // private bool IsColliding(char direction)
-    // {
+    private int IsColliding(char direction)
+    {
 
-    // }
+        int value = cols[direction];
+
+        if (value != 0)
+            return value;
+        else
+            return 0;
+    }
 
     private IEnumerator UpdatePosition()
     {
@@ -154,11 +182,10 @@ public class Agent : MonoBehaviour
     }
 
 
-    // This function can be hijacked to send the data to he server
-    public void UpdateSensorValue(int sensorIndex, int value)
+    public void UpdateSensorValue(char direction, int value)
     {
-        sensorValues[sensorIndex] = value;
-        Debug.Log($"Cols for Ag:{id}: sensorValues");
+        cols[direction] = value;
+        Debug.Log($"Cols for Ag:{id}:" + string.Join(", ", cols));
     }
 
     private void UpdateSensorPositions()
@@ -189,7 +216,7 @@ public class Agent : MonoBehaviour
     private void SetupCollisionMatrix()
     {
         // Sensors only interact with Agents, Objects, and Obstacles
-        // Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
+        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Tiles"), true);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Obstacles"), false);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Stacks"), false);
@@ -227,11 +254,11 @@ public class Agent : MonoBehaviour
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
         collider.radius = Enviroment.tileSize / 2;
-        collider.center = FlatDir23DDir(direction) * Enviroment.tileSize + sensorOffset;
+        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 0.4f) + new Vector3(0, 0.5f, 0);
 
         SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
         trigger.parentAgent = this;
-        trigger.sensorIndex = System.Array.IndexOf(directions, direction);
+        trigger.direction = Direction2Name(direction);
 
         // Crate visualizer
         GameObject visualizer = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -244,17 +271,6 @@ public class Agent : MonoBehaviour
 
         return trigger;
     }
-
-    // private int[] GetCollisionValues()
-    // {   
-    //     int[] dirs = new int[4];
-        
-
-    //     for (int i = 0; i < sensors.Length; i++)
-    //     {
-    //          sensors[i].
-    //     }
-    // }
 
     private Vector3 FlatDir23DDir(Vector2Int direction)
     {

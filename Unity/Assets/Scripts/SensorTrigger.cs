@@ -3,24 +3,24 @@ using UnityEngine;
 public class SensorTrigger : MonoBehaviour
 {
   public Agent parentAgent;
-  public int sensorIndex;
-
-  private void Start()
-  {
-    Debug.Log($"Sensor {sensorIndex} initialized. Layer: {LayerMask.LayerToName(gameObject.layer)}");
-  }
+  public char direction;
 
   private void OnTriggerEnter(Collider other)
   {
-    Debug.Log($"Sensor {sensorIndex} OnTriggerEnter. Other: {other.gameObject.name}, Layer: {LayerMask.LayerToName(other.gameObject.layer)}");
     int value = DetermineColliderType(other.gameObject.layer);
-    parentAgent.UpdateSensorValue(sensorIndex, value);
+
+    if (parentAgent != null)
+    {
+      parentAgent.UpdateSensorValue(direction, value);
+    } else 
+    {
+      Debug.LogError("The parent agent is not set correctly");
+    }
   }
 
   private void OnTriggerExit(Collider other)
   {
-    Debug.Log($"Sensor {sensorIndex} OnTriggerExit. Other: {other.gameObject.name}, Layer: {LayerMask.LayerToName(other.gameObject.layer)}");
-    parentAgent.UpdateSensorValue(sensorIndex, 0);
+    parentAgent.UpdateSensorValue(direction, 0);
   }
   private int DetermineColliderType(int layer)
   {

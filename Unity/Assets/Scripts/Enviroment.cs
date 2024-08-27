@@ -7,9 +7,10 @@ using Unity.VisualScripting;
 public class Enviroment : MonoBehaviour
 {
     [Header("Simulation Parameters")]
-    public int agents = 4;
+    public int agents = 1;
     public int items = 5;
     public int obstacles = 0;
+
 
     [Header("Object Parameters")]
     public GameObject AgentPrefab;
@@ -18,7 +19,6 @@ public class Enviroment : MonoBehaviour
     [Header("Eviroment Parameters")]
     public static float tileSize = 3;
     public static float yOffset = 0.1f;
-
     [SerializeField] private int n = 10;
     [SerializeField] private int m = 10;
     // The gap affects the tile size which then translates to more space between sensors, higher gap means smaller tiles, keep the value low
@@ -29,6 +29,7 @@ public class Enviroment : MonoBehaviour
     [SerializeField] private float wallHeight = 4f;
     [SerializeField] private float wallGirth = 0.4f;
     [SerializeField] private float baseThickness = 0.3f;
+
 
     [Header("Materials")]
     [SerializeField] private Material tileMaterial;
@@ -52,7 +53,9 @@ public class Enviroment : MonoBehaviour
         InitializeStaticVariables();
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWarehouse();
-        InitializeObjects();
+        // InitializeObjects();
+        SpawnAgent(new Vector2Int(3,8), 0);
+        SpawnAgent(new Vector2Int(3,5), 1);
         InitializeEnvManager();
     }
 
@@ -315,6 +318,9 @@ public class Enviroment : MonoBehaviour
         wall.transform.localPosition = position + center;
         wall.transform.localScale = size;
         wall.GetComponent<Renderer>().material = wallMaterial;
+
+        Rigidbody rigidBody = wall.AddComponent<Rigidbody>();
+        rigidBody.isKinematic = true;
 
         wall.layer = LayerMask.NameToLayer("Obstacles");
 

@@ -7,14 +7,13 @@ public class EnviromentManager : MonoBehaviour
 {
     // Set this with a slider to set the delay in which in iteration is finished and we send the current enviroment info to the server
     [Header("Manager parameters")]
-    [SerializeField] private float delay = 10f;
+    [SerializeField] private float delay = 30f;
     public static float iterationDelay;
 
     private List<int> agentIds = new List<int>();
 
     public delegate void AgentActionDelegate(int Id, string action);
     public static event AgentActionDelegate OnAgentAction;
-    private char[] directions = Agent.directionNames;
 
     private void Awake()
     {
@@ -37,13 +36,22 @@ public class EnviromentManager : MonoBehaviour
         {
             yield return new WaitForSeconds(iterationDelay);
 
-            foreach (int agentId in agentIds)
-            {
-                char randomDirection = directions[Random.Range(0, directions.Length)];
-                string instruction = $"M{randomDirection}";
-                OnAgentAction?.Invoke(agentId, instruction);
-            }
+            OnAgentAction?.Invoke(0, "MB");
+            OnAgentAction?.Invoke(1, "MF");
+
+            yield return new WaitForSeconds(iterationDelay);
+
+            OnAgentAction?.Invoke(1, "MB");
+            OnAgentAction?.Invoke(0, "MF");
+
         }
     }
 
 }
+
+// foreach (int agentId in agentIds)
+// {
+//     char randomDirection = directions[Random.Range(0, directions.Length)];
+//     string instruction = $"M{randomDirection}";
+//     OnAgentAction?.Invoke(agentId, instruction);
+// }
