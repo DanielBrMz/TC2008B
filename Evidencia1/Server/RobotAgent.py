@@ -1,7 +1,7 @@
 import agentpy as ap
 import numpy as np
 import json
-import random
+import random   
 
 class Robot(ap.Agent):
     def setup(self):
@@ -86,12 +86,15 @@ class ObjectStackingModel(ap.Model):
         self.num_objects = self.p.num_objects
         self.grid_size = self.p.grid_size
         self.max_steps = self.p.max_steps
+        self.current_step = 0
 
         # Create grid
         self.grid = ap.Grid(self, (self.grid_size, self.grid_size), track_empty=True)
 
         # Create robots
         self.robots = ap.AgentList(self, self.num_robots, Robot)
+        for i, robot in enumerate(self.robots):
+            robot.id = i + 1  # Assign ID to each robot
         self.grid.add_agents(self.robots, random=True, empty=True)
 
         # Create objects
@@ -101,34 +104,126 @@ class ObjectStackingModel(ap.Model):
         # Initialize stacks
         self.stacks = {}
 
-    def step(self):
-        for robot in self.robots:
-            robot.update_state(self)
-            action = robot.reason()
-            robot.act(action, self)
+        # Data collection
+        self.data = {
+            'steps_to_completion': None,
+            'robot_movements': {robot.id: 0 for robot in self.robots}
+        }
 
-        # Check if all objects are in stacks of max 5
-        if self.check_stacks():
+    def get_perception(self, robot):
+        # Get the robot's current position
+        x, y = self.grid.positions[robot]
+
+        # Define the four directions
+        directions = {'F': (0, 1), 'B': (0, -1), 'L': (-1, 0), 'R': (1, 0)}
+
+        perception = {}
+        for direction, (dx, dy) in directions.items():
+            new_x, new_y = x + dx, y + dy
+            
+            # Check if the new position is within the grid
+            if 0 <= new_x < self.grid_size and 0 <= new_y < self.grid_size:
+                cell_content = self.grid[new_x, new_y]
+                if not cell_content:
+                    perception[direction] = 0  # Empty
+                elif any(isinstance(agent, Robot) for agent in cell_content):
+                    perception[direction] = 2  # Obstacle (treating other robots as obstacles)
+                elif len(cell_content) == 1:
+                    perception[direction] = 1  # Single box
+                else:
+                    perception[direction] = 3  # Box stack
+            else:
+                perception[direction] = 2  # Treat out-of-bounds as an obstacle
+
+        return json.dumps({
+            "id": robot.id,
+            "position": perception
+        })
+
+    def update_environment(self, robot, action):
+        if action.startswith("move_"):
+            direction = action.split("_")[1]
+            if direction == "random":
+                direction = random.choice(['F', 'B', 'L', 'R'])
+            
+            dx, dy = {'F': (0, 1), 'B': (0, -1), 'L': (-1, 0), 'R': (1, 0)}[direction]
+            current_pos = self.grid.positions[robot]
+            new_pos = (current_pos[0] + dx, current_pos[1] + dy)
+            
+            if self.grid.empty[new_pos]:
+                self.grid.move_to(robot, new_pos)
+                self.data['robot_movements'][robot.id] += 1
+
+        elif action.startswith("grab_"):
+            direction = action.split("_")[1]
+            dx, dy = {'F': (0, 1), 'B': (0, -1), 'L': (-1, 0), 'R': (1, 0)}[direction]
+            current_pos = self.grid.positions[robot]
+            grab_pos = (current_pos[0] + dx, current_pos[1] + dy)
+            
+            objects_at_pos = [agent for agent in self.grid[grab_pos] if agent in self.objects]
+            if objects_at_pos:
+                grabbed_object = objects_at_pos[0]
+                self.grid.remove_agents(grabbed_object)
+                robot.isHolding = True
+
+        elif action.startswith("drop_"):
+            direction = action.split("_")[1]
+            dx, dy = {'F': (0, 1), 'B': (0, -1), 'L': (-1, 0), 'R': (1, 0)}[direction]
+            current_pos = self.grid.positions[robot]
+            drop_pos = (current_pos[0] + dx, current_pos[1] + dy)
+            
+            if robot.isHolding:
+                new_object = ap.Agent(self)
+                self.grid.add_agents(new_object, positions=drop_pos)
+                self.objects.append(new_object)
+                robot.isHolding = False
+
+                # Update stacks
+                if drop_pos not in self.stacks:
+                    self.stacks[drop_pos] = 1
+                else:
+                    self.stacks[drop_pos] += 1
+
+    def step(self):
+        self.current_step += 1
+
+        for robot in self.robots:
+            perception_json = self.get_perception(robot)
+            action = robot.step(perception_json)
+            self.update_environment(robot, action)
+
+        # Check if simulation should end
+        if self.check_end_condition():
+            if self.data['steps_to_completion'] is None:
+                self.data['steps_to_completion'] = self.current_step
             self.stop()
 
-    def check_stacks(self):
-        # Logic to check if all objects are in stacks of max 5
-        pass
+    def check_end_condition(self):
+        # Check if all objects are in stacks of maximum 5
+        return all(1 <= stack_size <= 5 for stack_size in self.stacks.values()) and \
+               sum(self.stacks.values()) == self.num_objects
 
     def end(self):
-        # Collect and record final data
-        pass
+        # If simulation ended due to max steps, record that
+        if self.data['steps_to_completion'] is None:
+            self.data['steps_to_completion'] = self.max_steps
 
-def main():
+        print(f"Simulation ended after {self.data['steps_to_completion']} steps")
+        print("Robot movements:")
+        for robot_id, movements in self.data['robot_movements'].items():
+            print(f"Robot {robot_id}: {movements} movements")
+
+        # Here you could add more detailed analysis or data export
+
+def run_model(parameters):
+    model = ObjectStackingModel(parameters)
+    results = model.run()
+    return model, results
+
+if __name__ == "__main__":
     parameters = {
         'num_objects': 20,
         'grid_size': 10,
         'max_steps': 1000
     }
-
-    model = ObjectStackingModel(parameters)
-    results = model.run()
-    
-
-if __name__ == "__main__":
-    main()
+    model, results = run_model(parameters)
