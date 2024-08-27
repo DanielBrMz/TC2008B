@@ -163,7 +163,7 @@ public class Agent : MonoBehaviour
     public void UpdateSensorValue(char direction, int value)
     {
         cols[direction] = value;
-        Debug.Log($"Cols for Ag:{id}:" + string.Join(", ", cols));
+        // Debug.Log($"Cols for Ag:{id}:" + string.Join(", ", cols));
     }
 
     private void UpdateSensorPositions()
@@ -243,7 +243,7 @@ public class Agent : MonoBehaviour
 
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
-        collider.radius = 0.1f;
+        collider.radius = (Enviroment.tileSize / 2) - 0.2f;
         collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 1f) + new Vector3(0, 0.5f, 0);
 
         SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
@@ -272,6 +272,7 @@ public class Agent : MonoBehaviour
         collider.isTrigger = true;
         collider.size = new Vector3(0.8f,0.8f,0.8f);
         collider.center = Vector3.zero;
+        collider.transform.rotation = Quaternion.Euler(0,45,0);
 
         ContactTrigger trigger = collider.AddComponent<ContactTrigger>();
         trigger.parentAgent = this;

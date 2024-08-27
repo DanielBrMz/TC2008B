@@ -12,7 +12,7 @@ public class ContactTrigger : MonoBehaviour
         if (boxCollider != null)
         {
             int value = Utils.DetermineColliderType(other.gameObject.layer);
-            Debug.LogError($"Ag:{parentAgent.id} collided with an {Utils.Col2Type(value)}!");
+            // Debug.LogError($"Ag:{parentAgent.id} collided with an {Utils.Col2Type(value)}!");
 
             // The collider is a BoxCollider, proceed with your logic
             parentAgent.hasCollided = true;

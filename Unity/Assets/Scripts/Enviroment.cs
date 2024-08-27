@@ -7,26 +7,27 @@ using Unity.VisualScripting;
 public class Enviroment : MonoBehaviour
 {
     [Header("Simulation Parameters")]
-    public int agents = 1;
-    public int items = 5;
+    public int nAgents = 5;
+    public int nItems = 20;
     public int obstacles = 0;
 
 
     [Header("Object Parameters")]
     public GameObject AgentPrefab;
+    public GameObject objectPrefab;
 
 
     [Header("Eviroment Parameters")]
-    public static float tileSize = 3;
-    public static float yOffset = 0.1f;
-    [SerializeField] private int n = 10;
-    [SerializeField] private int m = 10;
+    [SerializeField] private float tileDimensions = 3f;
+    [SerializeField] private float verticalOffset = 0.1f;
+    [SerializeField] private int n = 20;
+    [SerializeField] private int m = 20;
     // The gap affects the tile size which then translates to more space between sensors, higher gap means smaller tiles, keep the value low
     [SerializeField] private float gap = 0.05f;
-    [SerializeField] private Vector3 center = Vector3.zero;
+    private Vector3 center = Vector3.zero;
 
     [Header("Base and Walls")]
-    [SerializeField] private float wallHeight = 4f;
+    [SerializeField] private float wallHeight = 3f;
     [SerializeField] private float wallGirth = 0.4f;
     [SerializeField] private float baseThickness = 0.3f;
 
@@ -47,14 +48,18 @@ public class Enviroment : MonoBehaviour
     private static int nTiles;
     private static int mTiles;
 
+    public static float tileSize;
+    public static float yOffset;
+
+    private GameObject[] items;
+
     // Update is called once per frame
     private void Awake()
     {
         InitializeStaticVariables();
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWarehouse();
-        // InitializeAllEntities();
-        SpawnAgent(new Vector2Int(5,5), 0);
+        InitializeAllEntities();
         InitializeEnvManager();
     }
 
@@ -125,43 +130,49 @@ public class Enviroment : MonoBehaviour
             envManager = managerObject.AddComponent<EnviromentManager>();
         }
 
-        envManager.Initialize(agents);
+        envManager.Initialize(nAgents);
     }
 
     private void InitializeStaticVariables()
     {
         nTiles = n;
         mTiles = m;
+        tileSize = tileDimensions;
+        yOffset = verticalOffset;
     }
 
     private void InitializeAllEntities()
-    {
+    {   
+        items = new GameObject[nItems];
         GameObject agentsWrapper = new("Agents");
-        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(agents + items);
+        GameObject itemsWrapper = new("Objects");
+        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems);
         Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
 
         int currentAgentId = 0;
-        // int currentObjectId = 0;
+        int currentObjectId = 0;
 
         foreach (Vector2Int vectorPos in randomPositions)
         {
-            if (currentAgentId < agents)
+            if (currentAgentId < nAgents)
             {
                 SpawnAgent(vectorPos, currentAgentId).transform.parent = agentsWrapper.transform;
                 currentAgentId++;
             }
-            // else if (currentObjectId < items)
-            // {
-            //     SpawnObject(i, j);
-            //     objectCount -= 1;
-            // }
+            else if (currentObjectId < nItems)
+            {   
+                GameObject newObject = SpawnObject(vectorPos, currentObjectId);
+                newObject.transform.parent = itemsWrapper.transform;
+                items[currentAgentId] = newObject;
+                currentObjectId++;
+            }
         }
     }
 
     private GameObject SpawnAgent(Vector2Int pos, int id)
     {
         Vector3 position = CalculateObjectPosition(pos);
-        GameObject agentObject = Instantiate(AgentPrefab, position, Quaternion.identity);
+        GameObject agentObject = Instantiate(AgentPrefab, position , Quaternion.identity);
 
         if (agentObject.TryGetComponent<Agent>(out var agent))
         {
@@ -171,6 +182,14 @@ public class Enviroment : MonoBehaviour
         }
 
         return agentObject;
+    }
+
+    private GameObject SpawnObject(Vector2Int pos, int id)
+    {
+        Vector3 position = CalculateObjectPosition(pos);
+        GameObject objectInstance = Instantiate(objectPrefab, position + new Vector3(0f, 1f, 0f), Quaternion.identity);
+        objectInstance.name = $"Obj:{id}";
+        return objectInstance;
     }
 
     private void GenerateTiles(float tileSize, int nTiles, int mTiles)
