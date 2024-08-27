@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class Agent : MonoBehaviour
 {
@@ -15,8 +16,12 @@ public class Agent : MonoBehaviour
     {'L', 0},
     {'R', 0}
     };
+    public bool hasObject = false;
     public bool hasCollided = false;
 
+    private Object grabbedObject;
+
+    [SerializeField] private float grabHeight = 2.5f;
 
     [Header("Sensor configuration")]
     [SerializeField] private Material sensorMaterial;
@@ -27,12 +32,13 @@ public class Agent : MonoBehaviour
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
     private GameObject contactSensor;
-    private SensorTrigger[] sensors;
+    private Dictionary<char, SensorTrigger> sensors;
     public static bool showColliders = false;
 
     // Enviroment
     private Vector3 targetPosition;
     private Coroutine moveCorutine;
+    private Coroutine grabObjCorutine;
 
     private void Awake()
     {
@@ -90,7 +96,7 @@ public class Agent : MonoBehaviour
         switch (action)
         {
             case 'M':
-                Move(direction, EnviromentManager.iterationDelay);
+                Move(direction, EnviromentManager.iterationDuration);
                 break;
             default:
                 Debug.Log($"Action not implemented yet: {instruction}");
@@ -124,9 +130,97 @@ public class Agent : MonoBehaviour
         moveCorutine = StartCoroutine(UpdatePosition(direction, timeToMove));
     }
 
+    public void Grab(char direction, float timeToMove)
+    {
+        if (hasObject)
+        {
+            Debug.LogWarning("Already holding an object");
+            return;
+        }
+        Collider directionCollider = sensors[direction].transform.GetComponent<Collider>();
+        Object objectToGrab = FindObjectInCollider(directionCollider);
+        if (objectToGrab != null)
+        {
+            if (objectToGrab.TryStartGrab())
+            {
+                pos += Name2Direction(direction);
+                targetPosition = Enviroment.CalculateObjectPosition(pos);
+                grabObjCorutine = StartCoroutine(GrabObjCorutine(objectToGrab, EnviromentManager.iterationDuration, direction));
+            }
+            else
+            {
+                Debug.LogWarning($"Ag:{id} Object is already being grabbed by another agent");
+            }
+        }
+        else
+        {
+            Debug.LogError($"Ag:{id} No object to grab {direction}");
+        }
+    }
+
+    private Object FindObjectInCollider(Collider directionCollider)
+    {
+        Collider[] colliders = Physics.OverlapBox(directionCollider.bounds.center, directionCollider.bounds.extents, directionCollider.transform.rotation, LayerMask.GetMask("Objects"));
+
+        foreach (Collider collider in colliders)
+        {
+            Object obj = collider.GetComponent<Object>();
+            if (obj != null)
+            {
+                return obj;
+            }
+        }
+
+        return null;
+    }
+
+    private IEnumerator GrabObjCorutine(Object obj, float timeToMove, char dir)
+    {
+        Vector3 objStartPos = obj.transform.position;
+        Vector3 agStartPos = transform.position;
+        Vector3 aboveAgentPos = transform.position + Vector3.up * grabHeight;
+        float elapsedTime = 0f;
+        bool grabSuccessful = true;
+
+        while (elapsedTime < EnviromentManager.iterationDuration)
+        {
+            elapsedTime += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsedTime / timeToMove);
+            obj.transform.position = Vector3.Lerp(objStartPos, aboveAgentPos, t);
+            transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
+
+            // Check if the object is still available (hasn't been taken by another agent)
+            if (!obj.gameObject.activeSelf || obj.transform.parent != null)
+            {
+                grabSuccessful = false;
+                break;
+            }
+
+            yield return null;
+        }
+
+        if (grabSuccessful)
+        {
+            obj.transform.position = aboveAgentPos;
+            transform.position = targetPosition;
+            hasObject = true;
+            grabbedObject = obj;
+            obj.ObjGrab(transform);
+        }
+        else
+        {
+            // Move back to starting position
+            transform.position = agStartPos;
+            pos -= Name2Direction(dir); // Revert position change
+            Debug.LogWarning($"Ag:{id} Failed to grab object, it was taken by another agent");
+            obj.CancelGrab();
+        }
+
+        grabObjCorutine = null;
+    }
+
     private int IsColliding(char direction)
     {
-
         int value = cols[direction];
 
         if (value != 0)
@@ -146,7 +240,7 @@ public class Agent : MonoBehaviour
             transform.position = Vector3.Lerp(startPos, targetPosition, t);
 
             if (hasCollided)
-            {   
+            {
                 StopCoroutine(moveCorutine);
                 float remainingTime = timeToMove - elapsedTime;
                 Move(Utils.OppositeDir(direction), remainingTime);
@@ -168,24 +262,26 @@ public class Agent : MonoBehaviour
 
     private void UpdateSensorPositions()
     {
-        for (int i = 0; i < sensors.Length; i++)
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
         {
-            sensors[i].transform.position = transform.position;
+            SensorTrigger trigger = sensor.Value;
+            trigger.transform.position = transform.position;
             // sensors[i].transform.rotation = transform.rotation;
         }
     }
 
     private void UpdateContactSensorPosition()
     {
-        contactSensor.transform.position = transform.position + new Vector3(0f,1.5f,0f);
+        contactSensor.transform.position = transform.position + new Vector3(0f, 1.5f, 0f);
     }
 
 
     private void UpdateColliderVisibility()
     {
-        foreach (SensorTrigger sensor in sensors)
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
         {
-            sensor.transform.GetChild(0).gameObject.SetActive(showColliders);
+            SensorTrigger sensorTrigger = sensor.Value;
+            sensorTrigger.transform.GetChild(0).gameObject.SetActive(showColliders);
         }
     }
 
@@ -213,16 +309,17 @@ public class Agent : MonoBehaviour
         sensorsContainer.transform.SetParent(transform);
         sensorsContainer.transform.localPosition = Vector3.zero;
 
-        sensors = new SensorTrigger[Utils.directions.Length];
+        sensors = new Dictionary<char, SensorTrigger>();
 
-        sensors[0] = GenerateSensor("Sens:F", Utils.directions[0]);
-        sensors[1] = GenerateSensor("Sens:B", Utils.directions[1]);
-        sensors[2] = GenerateSensor("Sens:L", Utils.directions[2]);
-        sensors[3] = GenerateSensor("Sens:R", Utils.directions[3]);
+        sensors['F'] = GenerateSensor("Sens:F", Utils.directions[0]);
+        sensors['B'] = GenerateSensor("Sens:B", Utils.directions[1]);
+        sensors['L'] = GenerateSensor("Sens:L", Utils.directions[2]);
+        sensors['R'] = GenerateSensor("Sens:R", Utils.directions[3]);
 
-        foreach (SensorTrigger sensor in sensors)
+        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
         {
-            sensor.transform.parent = sensorsContainer.transform;
+            SensorTrigger trigger = sensor.Value;
+            trigger.transform.parent = sensorsContainer.transform;
         }
 
         Utils.SetLayerRecursivelyByName(sensorsContainer, "Sensors");
@@ -270,13 +367,13 @@ public class Agent : MonoBehaviour
 
         BoxCollider collider = sensor.AddComponent<BoxCollider>();
         collider.isTrigger = true;
-        collider.size = new Vector3(0.8f,0.8f,0.8f);
+        collider.size = new Vector3(0.8f, 0.8f, 0.8f);
         collider.center = Vector3.zero;
-        collider.transform.rotation = Quaternion.Euler(0,45,0);
+        collider.transform.rotation = Quaternion.Euler(0, 45, 0);
 
         ContactTrigger trigger = collider.AddComponent<ContactTrigger>();
         trigger.parentAgent = this;
-        
+
         return sensor;
     }
 

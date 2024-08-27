@@ -142,12 +142,11 @@ public class Enviroment : MonoBehaviour
     }
 
     private void InitializeAllEntities()
-    {   
+    {
         items = new GameObject[nItems];
         GameObject agentsWrapper = new("Agents");
         GameObject itemsWrapper = new("Objects");
         Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems);
-        Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
 
         int currentAgentId = 0;
         int currentObjectId = 0;
@@ -160,19 +159,22 @@ public class Enviroment : MonoBehaviour
                 currentAgentId++;
             }
             else if (currentObjectId < nItems)
-            {   
+            {
                 GameObject newObject = SpawnObject(vectorPos, currentObjectId);
                 newObject.transform.parent = itemsWrapper.transform;
-                items[currentAgentId] = newObject;
+                items[currentObjectId] = newObject;
                 currentObjectId++;
             }
         }
+
+        Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
+        Utils.SetLayerRecursivelyByName(itemsWrapper, "Objects");
     }
 
     private GameObject SpawnAgent(Vector2Int pos, int id)
     {
         Vector3 position = CalculateObjectPosition(pos);
-        GameObject agentObject = Instantiate(AgentPrefab, position , Quaternion.identity);
+        GameObject agentObject = Instantiate(AgentPrefab, position, Quaternion.identity);
 
         if (agentObject.TryGetComponent<Agent>(out var agent))
         {
@@ -187,7 +189,9 @@ public class Enviroment : MonoBehaviour
     private GameObject SpawnObject(Vector2Int pos, int id)
     {
         Vector3 position = CalculateObjectPosition(pos);
-        GameObject objectInstance = Instantiate(objectPrefab, position + new Vector3(0f, 1f, 0f), Quaternion.identity);
+        GameObject objectInstance = Instantiate(objectPrefab, Vector3.zero, Quaternion.identity);
+        float size = objectInstance.GetComponent<Object>().size;
+        objectInstance.transform.position = position + new Vector3(0f, size / 2, 0f);
         objectInstance.name = $"Obj:{id}";
         return objectInstance;
     }
@@ -255,7 +259,7 @@ public class Enviroment : MonoBehaviour
         warehouseWrapper.transform.parent = transform;
 
         GenerateFloor().transform.parent = warehouseWrapper.transform;
-        GenerateWalls().transform.parent = warehouseWrapper.transform; 
+        GenerateWalls().transform.parent = warehouseWrapper.transform;
     }
 
 
