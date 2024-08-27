@@ -5,9 +5,11 @@ public class SensorTrigger : MonoBehaviour
   public Agent parentAgent;
   public char direction;
 
+  private int value = 0;
+
   private void OnTriggerEnter(Collider other)
   {
-    int value = Utils.DetermineColliderType(other.gameObject.layer);
+    value = Utils.DetermineColliderType(other.gameObject.layer);
 
     if (parentAgent != null)
     {
@@ -21,5 +23,10 @@ public class SensorTrigger : MonoBehaviour
   private void OnTriggerExit(Collider other)
   {
     parentAgent.UpdateSensorValue(direction, 0);
+  }
+
+  public int GetSensorValue()
+  {
+    return value;
   }
 }

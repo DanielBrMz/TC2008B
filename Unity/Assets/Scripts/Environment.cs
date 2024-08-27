@@ -43,7 +43,7 @@ public class Enviroment : MonoBehaviour
     // We add all tile renderers to this list so they can be updated later
     private List<MeshRenderer> tileRenderers = new List<MeshRenderer>();
     private static bool tilesVisible = false;
-    private EnviromentManager envManager;
+    private EnvironmentManager envManager;
 
     private static int nTiles;
     private static int mTiles;
@@ -52,6 +52,8 @@ public class Enviroment : MonoBehaviour
     public static float yOffset;
 
     private GameObject[] items;
+
+    public static List<Agent> agents;
 
     // Update is called once per frame
     private void Awake()
@@ -123,14 +125,14 @@ public class Enviroment : MonoBehaviour
     // Setup
     private void InitializeEnvManager()
     {
-        envManager = FindObjectOfType<EnviromentManager>();
+        envManager = FindObjectOfType<EnvironmentManager>();
         if (envManager == null)
         {
             GameObject managerObject = new GameObject("EnviromentManager");
-            envManager = managerObject.AddComponent<EnviromentManager>();
+            envManager = managerObject.AddComponent<EnvironmentManager>();
         }
 
-        envManager.Initialize(nAgents);
+        envManager.Initialize();
     }
 
     private void InitializeStaticVariables()
@@ -143,6 +145,7 @@ public class Enviroment : MonoBehaviour
 
     private void InitializeAllEntities()
     {
+        agents = new List<Agent>(nAgents);
         items = new GameObject[nItems];
         GameObject agentsWrapper = new("Agents");
         GameObject itemsWrapper = new("Objects");
@@ -155,7 +158,10 @@ public class Enviroment : MonoBehaviour
         {
             if (currentAgentId < nAgents)
             {
-                SpawnAgent(vectorPos, currentAgentId).transform.parent = agentsWrapper.transform;
+                GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
+                agObject.transform.parent = agentsWrapper.transform;
+                Agent newAgent = agObject.GetComponent<Agent>();
+                agents.Add(newAgent);
                 currentAgentId++;
             }
             else if (currentObjectId < nItems)

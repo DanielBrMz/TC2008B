@@ -1,11 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.AI;
 
 public class Agent : MonoBehaviour
-{
+{   
+    private TaskCompletionSource<bool> actionCompletionSource;
+
     [Header("Agent values")]
     public int id;
     public Vector2Int pos;
@@ -16,6 +19,7 @@ public class Agent : MonoBehaviour
     {'L', 0},
     {'R', 0}
     };
+    
     public bool hasObject = false;
     public bool hasCollided = false;
 
@@ -40,12 +44,12 @@ public class Agent : MonoBehaviour
     private Coroutine moveCorutine;
     private Coroutine grabObjCorutine;
 
+
     private void Awake()
     {
 
         SetupCollisionMatrix();
         GenerateSensors();
-        EnviromentManager.OnAgentAction += ActionManager;
     }
 
 
@@ -77,31 +81,33 @@ public class Agent : MonoBehaviour
         }
     }
 
-    public void ActionManager(int agentId, string instruction)
+    public async Task ExecuteAction(string action)
     {
-        if (id != agentId)
-        {
-            return;
-        }
+        actionCompletionSource = new TaskCompletionSource<bool>();
 
-        if (instruction.Length != 2)
-        {
-            Debug.LogError($"Invalid instruction string format: {instruction}.");
-            return;
-        }
-
-        char action = instruction[0];
-        char direction = instruction[1];
-
-        switch (action)
+        switch (action[0])
         {
             case 'M':
-                Move(direction, EnviromentManager.iterationDuration);
+                Move(action[1], EnvironmentManager.iterationDuration);
                 break;
+            case 'G':
+                Grab(action[1], EnvironmentManager.iterationDuration);
+                break;
+            // case 'D':
+            //     Drop(action[1], EnvironmentManager.iterationDuration);
+            //     break;
             default:
-                Debug.Log($"Action not implemented yet: {instruction}");
+                Debug.LogError($"Unknown action: {action}");
+                actionCompletionSource.SetResult(true);
                 break;
         }
+
+        await actionCompletionSource.Task;
+    }
+
+    public void ActionCompleted()
+    {
+        actionCompletionSource?.TrySetResult(true);
     }
 
     // Updaters
@@ -145,7 +151,7 @@ public class Agent : MonoBehaviour
             {
                 pos += Name2Direction(direction);
                 targetPosition = Enviroment.CalculateObjectPosition(pos);
-                grabObjCorutine = StartCoroutine(GrabObjCorutine(objectToGrab, EnviromentManager.iterationDuration, direction));
+                grabObjCorutine = StartCoroutine(GrabObjCorutine(objectToGrab, EnvironmentManager.iterationDuration, direction));
             }
             else
             {
@@ -182,7 +188,7 @@ public class Agent : MonoBehaviour
         float elapsedTime = 0f;
         bool grabSuccessful = true;
 
-        while (elapsedTime < EnviromentManager.iterationDuration)
+        while (elapsedTime < EnvironmentManager.iterationDuration)
         {
             elapsedTime += Time.deltaTime;
             float t = Mathf.Clamp01(elapsedTime / timeToMove);
@@ -217,6 +223,7 @@ public class Agent : MonoBehaviour
         }
 
         grabObjCorutine = null;
+        ActionCompleted();
     }
 
     private int IsColliding(char direction)
@@ -251,13 +258,13 @@ public class Agent : MonoBehaviour
         }
         transform.position = targetPosition;
         moveCorutine = null;
+        ActionCompleted();
     }
 
 
     public void UpdateSensorValue(char direction, int value)
     {
         cols[direction] = value;
-        // Debug.Log($"Cols for Ag:{id}:" + string.Join(", ", cols));
     }
 
     private void UpdateSensorPositions()
@@ -266,15 +273,26 @@ public class Agent : MonoBehaviour
         {
             SensorTrigger trigger = sensor.Value;
             trigger.transform.position = transform.position;
-            // sensors[i].transform.rotation = transform.rotation;
         }
+    }
+
+    public Task<Dictionary<char, int>> GetSensorData()
+    {
+        Dictionary<char, int> newCols = new Dictionary<char, int>();
+        foreach(KeyValuePair<char, SensorTrigger> sensor in sensors)
+        {   
+            char direction = sensor.Key;
+            SensorTrigger trigger = sensor.Value;
+            newCols[direction] = trigger.GetSensorValue();
+        }
+
+        return Task.FromResult(newCols);
     }
 
     private void UpdateContactSensorPosition()
     {
         contactSensor.transform.position = transform.position + new Vector3(0f, 1.5f, 0f);
     }
-
 
     private void UpdateColliderVisibility()
     {
