@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using UnityEditor.SearchService;
 using System.Linq;
+using Unity.VisualScripting;
 
 public class Enviroment : MonoBehaviour
 {
@@ -222,6 +223,7 @@ public class Enviroment : MonoBehaviour
 
         // Add tile renderer to array
         tileRenderers.Add(tileRenderer);
+        tileObject.layer = LayerMask.NameToLayer("Tiles");
 
         return tileObject;
     }
@@ -231,7 +233,7 @@ public class Enviroment : MonoBehaviour
         GameObject warehouseWrapper = new GameObject("Warehouse");
         warehouseWrapper.transform.parent = transform;
 
-        GenerateFloor().transform.parent = warehouseWrapper.transform;
+        // GenerateFloor().transform.parent = warehouseWrapper.transform;
         GenerateWalls().transform.parent = warehouseWrapper.transform;
 
         Utils.SetLayerRecursivelyByName(warehouseWrapper, "Obstacles");
@@ -313,6 +315,15 @@ public class Enviroment : MonoBehaviour
         wall.transform.localPosition = position + center;
         wall.transform.localScale = size;
         wall.GetComponent<Renderer>().material = wallMaterial;
+
+        wall.layer = LayerMask.NameToLayer("Obstacles");
+
+        // Ensure the wall has a BoxCollider
+        BoxCollider collider = wall.GetComponent<BoxCollider>();
+        if (collider == null)
+        {
+            collider = wall.AddComponent<BoxCollider>();
+        }
 
         return wall;
     }

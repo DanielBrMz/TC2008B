@@ -16,7 +16,6 @@ public class Agent : MonoBehaviour
     [Header("Sensor configuration")]
     [SerializeField] private Vector3 sensorOffset = new Vector3(0f, 0.5f, 0f); // Offset from the agent's center
     // [SerializeField] private float sensorVerticalOffset = 0.5f;
-    [SerializeField] private float sensorSize = 1f;
     [SerializeField] private Material sensorMaterial;
 
     //Model values
@@ -24,14 +23,13 @@ public class Agent : MonoBehaviour
 
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
-    private GameObject[] sensors;
+    private SensorTrigger[] sensors;
     private int[] sensorValues; // 0: nothing, 1: another agent, 2: object
     public static bool showColliders = false;
 
     // Enviroment
     private Vector3 targetPosition;
     private Coroutine moveCorutine;
-    private float sensorDistance;
 
 
     private void Awake()
@@ -39,7 +37,6 @@ public class Agent : MonoBehaviour
         SetupCollisionMatrix();
         GenerateSensors();
         EnviromentManager.OnAgentAction += ActionManager;
-        sensorDistance = Enviroment.tileSize;
     }
 
 
@@ -140,7 +137,6 @@ public class Agent : MonoBehaviour
 
     private IEnumerator UpdatePosition()
     {
-        Debug.Log($"Agent:{id} moves!");
         Vector3 startPos = transform.position;
         float elapsedTime = 0f;
 
@@ -162,6 +158,7 @@ public class Agent : MonoBehaviour
     public void UpdateSensorValue(int sensorIndex, int value)
     {
         sensorValues[sensorIndex] = value;
+        Debug.Log($"Cols for Ag:{id}: sensorValues");
     }
 
     private void UpdateSensorPositions()
@@ -176,7 +173,7 @@ public class Agent : MonoBehaviour
 
     private void UpdateColliderVisibility()
     {
-        foreach (GameObject sensor in sensors)
+        foreach (SensorTrigger sensor in sensors)
         {
             sensor.transform.GetChild(0).gameObject.SetActive(showColliders);
         }
@@ -192,7 +189,8 @@ public class Agent : MonoBehaviour
     private void SetupCollisionMatrix()
     {
         // Sensors only interact with Agents, Objects, and Obstacles
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
+        // Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
+        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Tiles"), true);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Obstacles"), false);
         Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Stacks"), false);
     }
@@ -204,19 +202,22 @@ public class Agent : MonoBehaviour
         sensorsContainer.transform.SetParent(transform);
         sensorsContainer.transform.localPosition = Vector3.zero;
 
-        sensors = new GameObject[directions.Length];
-        sensorValues = new int[directions.Length];
+        sensors = new SensorTrigger[directions.Length];
 
-        for (int i = 0; i < directions.Length; i++)
+        sensors[0] = GenerateSensor("Sens:F", directions[0]);
+        sensors[1] = GenerateSensor("Sens:B", directions[1]);
+        sensors[2] = GenerateSensor("Sens:L", directions[2]);
+        sensors[3] = GenerateSensor("Sens:R", directions[3]);
+
+        foreach (SensorTrigger sensor in sensors)
         {
-            string directionName = Direction2Name(directions[i]);
-            sensors[i] = GenerateSensor($"Sens{directionName}", directions[i]);
-            sensors[i].transform.SetParent(sensorsContainer.transform);
-            sensorValues[i] = 0;
+            sensor.transform.parent = sensorsContainer.transform;
         }
+
+        Utils.SetLayerRecursivelyByName(sensorsContainer, "Sensors");
     }
 
-    private GameObject GenerateSensor(string name, Vector2Int direction)
+    private SensorTrigger GenerateSensor(string name, Vector2Int direction)
     {
         GameObject sensor = new GameObject(name);
         sensor.transform.SetParent(transform); // Set the subject of this script as the parent
@@ -225,10 +226,10 @@ public class Agent : MonoBehaviour
 
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
-        collider.radius = sensorSize / 2;
-        collider.center = FlatDir23DDir(direction) * sensorDistance + sensorOffset;
+        collider.radius = Enviroment.tileSize / 2;
+        collider.center = FlatDir23DDir(direction) * Enviroment.tileSize + sensorOffset;
 
-        SensorTrigger trigger = sensor.AddComponent<SensorTrigger>();
+        SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
         trigger.parentAgent = this;
         trigger.sensorIndex = System.Array.IndexOf(directions, direction);
 
@@ -236,13 +237,24 @@ public class Agent : MonoBehaviour
         GameObject visualizer = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         visualizer.transform.SetParent(sensor.transform);
         visualizer.transform.localPosition = collider.center;
-        visualizer.transform.localScale = Vector3.one * (sensorSize / 2 * 2);
+        visualizer.transform.localScale = Vector3.one * (Enviroment.tileSize / 2 * 2);
         Destroy(visualizer.GetComponent<SphereCollider>()); // Remove colliders since they are not needed
         visualizer.transform.GetComponent<Renderer>().material = sensorMaterial;
         visualizer.SetActive(showColliders);
 
-        return sensor;
+        return trigger;
     }
+
+    // private int[] GetCollisionValues()
+    // {   
+    //     int[] dirs = new int[4];
+        
+
+    //     for (int i = 0; i < sensors.Length; i++)
+    //     {
+    //          sensors[i].
+    //     }
+    // }
 
     private Vector3 FlatDir23DDir(Vector2Int direction)
     {
