@@ -1,11 +1,9 @@
 using UnityEngine;
 using System.Collections.Generic;
-using System.Net.Mail;
-using System.Security.Cryptography.X509Certificates;
-using Unity.VisualScripting;
 using UnityEditor.SearchService;
+using System.Linq;
 
-public class EnviromentSpawner : MonoBehaviour
+public class Enviroment : MonoBehaviour
 {
     [Header("Simulation Parameters")]
     public int agents = 4;
@@ -17,15 +15,17 @@ public class EnviromentSpawner : MonoBehaviour
 
 
     [Header("Eviroment Parameters")]
-    [SerializeField] private int nTiles = 10;
-    [SerializeField] private int mTiles = 10;
-    [SerializeField] private float tileSize = 3;
+    public static float tileSize = 3;
+    public static float yOffset = 0.1f;
+
+    [SerializeField] private int n = 10;
+    [SerializeField] private int m = 10;
+    // The gap affects the tile size which then translates to more space between sensors, higher gap means smaller tiles, keep the value low
     [SerializeField] private float gap = 0.05f;
-    [SerializeField] private float yOffset = 0.1f;
     [SerializeField] private Vector3 center = Vector3.zero;
 
     [Header("Base and Walls")]
-    [SerializeField] private float wallHeight = 5f;
+    [SerializeField] private float wallHeight = 4f;
     [SerializeField] private float wallGirth = 0.4f;
     [SerializeField] private float baseThickness = 0.3f;
 
@@ -36,17 +36,23 @@ public class EnviromentSpawner : MonoBehaviour
 
 
     private GameObject[,] tiles;
-    private Vector3 bounds;
+    public static Vector3 bounds;
     // We add all tile renderers to this list so they can be updated later
     private List<MeshRenderer> tileRenderers = new List<MeshRenderer>();
     private static bool tilesVisible = false;
+    private EnviromentManager envManager;
+
+    private static int nTiles;
+    private static int mTiles;
 
     // Update is called once per frame
     private void Awake()
     {
+        InitializeStaticVariables();
         GenerateTiles(tileSize, nTiles, mTiles);
         GenerateWarehouse();
         InitializeObjects();
+        InitializeEnvManager();
     }
 
     private void Update()
@@ -55,40 +61,108 @@ public class EnviromentSpawner : MonoBehaviour
     }
 
 
+    // Utils
+    public static Vector3 CalculateObjectPosition(Vector2Int pos)
+    {
+        Vector3 tilePosition = new Vector3(pos.x * tileSize, yOffset, pos.y * tileSize) - bounds;
+        Vector3 centeredPosition = tilePosition + new Vector3(tileSize / 2, 0, tileSize / 2);
+
+        return centeredPosition;
+    }
+
+
+    private Vector2Int[] GenerateUniqueRandomPositions(int nPos)
+    {
+        Vector2Int[] randomPositions = new Vector2Int[nPos];
+        HashSet<Vector2Int> usedPositions = new HashSet<Vector2Int>(nPos);
+        int i = 0;
+        while (i < nPos)
+        {
+            // Generate a new random position
+            int k = Random.Range(0, nTiles);
+            int l = Random.Range(0, mTiles);
+            Vector2Int newPosition = new Vector2Int(k, l);
+
+            // Check if the position is already used
+            if (!usedPositions.Contains(newPosition))
+            {
+                // Add the new position to the array and the set of used positions
+                randomPositions[i] = newPosition;  // Changed this line
+                usedPositions.Add(newPosition);
+                i++;
+            }
+        }
+        return randomPositions;
+    }
+
+    // Updaters
+    private void UpdateTileVisibility()
+    {
+        foreach (MeshRenderer renderer in tileRenderers)
+        {
+            if (renderer != null)
+            {
+                renderer.enabled = tilesVisible;
+            }
+        }
+    }
+
+    public static void ToggleTileVisibility()
+    {
+        tilesVisible = !tilesVisible;
+    }
+
+    // Setup
+    private void InitializeEnvManager()
+    {
+        envManager = FindObjectOfType<EnviromentManager>();
+        if (envManager == null)
+        {
+            GameObject managerObject = new GameObject("EnviromentManager");
+            envManager = managerObject.AddComponent<EnviromentManager>();
+        }
+
+        envManager.Initialize(agents);
+    }
+
+    private void InitializeStaticVariables()
+    {
+        nTiles = n;
+        mTiles = m;
+    }
+
     private void InitializeObjects()
     {
         GameObject agentsWrapper = new("Agents");
+        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(agents + items);
+        Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
 
+        int currentAgentId = 0;
+        // int currentObjectId = 0;
 
-        int agentCount = agents - 1;
-        int objectCount = items - 1;
-        int[,] randomPositions = GenerateUniqueRandomPositions();
-
-        for (int i = 0; i < nTiles; i++)
-            for (int j = 0; j < mTiles; j++)
-                if (randomPositions[i, j] != 0)
-                {
-                    if (agentCount >= 0)
-                    {
-                        SpawnAgent(i, j, agentCount + 1).transform.parent = agentsWrapper.transform;
-                        agentCount -= 1;
-                    }
-                    // else if (objectCount >= 0)
-                    // {
-                    //     SpawnObject(i, j);
-                    //     objectCount -= 1;
-                    // }
-                }
+        foreach (Vector2Int vectorPos in randomPositions)
+        {
+            if (currentAgentId < agents)
+            {
+                SpawnAgent(vectorPos, currentAgentId).transform.parent = agentsWrapper.transform;
+                currentAgentId++;
+            }
+            // else if (currentObjectId < items)
+            // {
+            //     SpawnObject(i, j);
+            //     objectCount -= 1;
+            // }
+        }
     }
 
-    private GameObject SpawnAgent(int x, int y, int id)
+    private GameObject SpawnAgent(Vector2Int pos, int id)
     {
-        Vector3 position = CalculateObjectPosition(x, y);
+        Vector3 position = CalculateObjectPosition(pos);
         GameObject agentObject = Instantiate(AgentPrefab, position, Quaternion.identity);
 
-        if(agentObject.TryGetComponent<Agent>(out var agent))
+        if (agentObject.TryGetComponent<Agent>(out var agent))
         {
-            agent.pos = new Vector2(x, y);
+            agent.pos = pos;
             agent.id = id;
             agent.name = "Agent: " + id;
         }
@@ -96,19 +170,10 @@ public class EnviromentSpawner : MonoBehaviour
         return agentObject;
     }
 
-    private Vector3 CalculateObjectPosition(int x, int y)
-    {
-        Vector3 tilePosition = new Vector3(x * tileSize, yOffset, y * tileSize) - bounds;
-        Vector3 centeredPosition = tilePosition + new Vector3(tileSize / 2, 0, tileSize / 2);
-
-        return centeredPosition;
-    }
-
     private void GenerateTiles(float tileSize, int nTiles, int mTiles)
     {
         //Wrapper
-        GameObject tilesWrapper = new GameObject();
-        tilesWrapper.name = "Tiles";
+        GameObject tilesWrapper = new GameObject("Tiles");
         tilesWrapper.transform.parent = transform;
 
 
@@ -168,7 +233,10 @@ public class EnviromentSpawner : MonoBehaviour
 
         GenerateFloor().transform.parent = warehouseWrapper.transform;
         GenerateWalls().transform.parent = warehouseWrapper.transform;
+
+        Utils.SetLayerRecursivelyByName(warehouseWrapper, "Obstacles");
     }
+
 
     private GameObject GenerateFloor()
     {
@@ -247,47 +315,5 @@ public class EnviromentSpawner : MonoBehaviour
         wall.GetComponent<Renderer>().material = wallMaterial;
 
         return wall;
-    }
-
-    private void UpdateTileVisibility()
-    {
-        foreach (MeshRenderer renderer in tileRenderers)
-        {
-            if (renderer != null)
-            {
-                renderer.enabled = tilesVisible;
-            }
-        }
-    }
-
-    private int[,] GenerateUniqueRandomPositions()
-    {
-        int[,] randomPositions = new int[nTiles, mTiles];
-        HashSet<int[,]> usedPositions = new HashSet<int[,]>();
-        int i = 0, j = 0;
-
-        while (i < agents + items)
-        {
-            // Generate a new random position
-            int k = Random.Range(0, nTiles);
-            int l = Random.Range(0, mTiles);
-            int[,] newPosition = new int[k, l];
-
-            // Check if the position is already used
-            if (!usedPositions.Contains(newPosition))
-            {
-                // Add the new position to the array and the set of used positions
-                randomPositions[k, l] = 1;
-                usedPositions.Add(newPosition);
-                i++; j++;
-            }
-        }
-
-        return randomPositions;
-    }
-
-    public static void ToggleTileVisibility()
-    {
-        tilesVisible = !tilesVisible;
     }
 }

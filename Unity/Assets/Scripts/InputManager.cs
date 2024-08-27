@@ -4,7 +4,8 @@ using UnityEngine;
 public class ColliderVisibilityManager : MonoBehaviour
 {
     void Update()
-    {
+    {   
+
         if (Input.GetKeyDown(KeyCode.V)) // Press 'V' to toggle visibility
         {
             Agent.ToggleColliderVisibility();
@@ -12,7 +13,7 @@ public class ColliderVisibilityManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.T))
         {
-            EnviromentSpawner.ToggleTileVisibility();
+            Enviroment.ToggleTileVisibility();
         }
     }
 }

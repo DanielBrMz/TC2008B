@@ -11,10 +11,10 @@ TagManager:
   - 
   - Water
   - UI
-  - Sensor
-  - Agent
-  - Object
-  - Obstacle
+  - Objects
+  - Obstacles
+  - Stacks
+  - 
   - 
   - 
   - 
