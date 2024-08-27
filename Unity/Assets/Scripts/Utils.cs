@@ -50,4 +50,31 @@ public class Utils : MonoBehaviour
         default: return direction;
         }
     }
+
+    public static int DetermineColliderType(int layer)
+    {
+    if (layer == LayerMask.NameToLayer("Objects"))
+      return 1; // Objects
+    else if (layer == LayerMask.NameToLayer("Obstacles"))
+      return 2; // Obstacles
+    else if (layer == LayerMask.NameToLayer("Stacks"))
+      return 3; // Stacks
+    else
+      return 0; // No collision or unknown layer
+    }
+
+    public static string Col2Type(int col)
+    {
+        switch (col)
+        {
+            case 1:
+                return "Object";
+            case 2:
+                return "Obstacle";
+            case 3:
+                return "Stack";
+            default:
+                return "Undefined";
+        }
+    }
 }

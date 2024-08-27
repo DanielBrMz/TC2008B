@@ -11,15 +11,16 @@ public class ContactTrigger : MonoBehaviour
         BoxCollider boxCollider = other.GetComponent<BoxCollider>();
         if (boxCollider != null)
         {
+            int value = Utils.DetermineColliderType(other.gameObject.layer);
+            Debug.LogError($"Ag:{parentAgent.id} collided with an {Utils.Col2Type(value)}!");
+
             // The collider is a BoxCollider, proceed with your logic
-            Debug.Log("Collided with a BoxCollider!");
             parentAgent.hasCollided = true;
             // Your logic here
         }
         else
         {
-            // The collider is not a BoxCollider, you can choose to ignore it or handle differently
-            Debug.Log("Collided with a non-BoxCollider!");
+            ;// The collider is not a BoxCollider, you can choose to ignore it or handle differently
         }
     }
 
@@ -33,7 +34,7 @@ public class ContactTrigger : MonoBehaviour
         }
         else
         {
-            Debug.Log("Collided with a non-BoxCollider!");
+            ;
         }
     }
 }

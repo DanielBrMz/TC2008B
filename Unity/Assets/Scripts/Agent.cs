@@ -71,21 +71,6 @@ public class Agent : MonoBehaviour
         }
     }
 
-    private string Col2Type(int col)
-    {
-        switch (col)
-        {
-            case 1:
-                return "Object";
-            case 2:
-                return "Obstacle";
-            case 3:
-                return "Stack";
-            default:
-                return "Undefined";
-        }
-    }
-
     public void ActionManager(int agentId, string instruction)
     {
         if (id != agentId)
@@ -121,7 +106,7 @@ public class Agent : MonoBehaviour
         Vector2Int newPos = pos + Name2Direction(direction);
         if (value != 0)
         {
-            Debug.LogWarning($"Ag:{id} tried to move into an {Col2Type(value)}!");
+            Debug.LogWarning($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
             return;
         }
 
@@ -163,7 +148,6 @@ public class Agent : MonoBehaviour
             if (hasCollided)
             {   
                 StopCoroutine(moveCorutine);
-                Debug.LogError($"Ag:{id} collided with another agent!");
                 float remainingTime = timeToMove - elapsedTime;
                 Move(Utils.OppositeDir(direction), remainingTime);
                 yield break;

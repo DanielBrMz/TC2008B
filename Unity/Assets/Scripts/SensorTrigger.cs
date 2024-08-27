@@ -7,7 +7,7 @@ public class SensorTrigger : MonoBehaviour
 
   private void OnTriggerEnter(Collider other)
   {
-    int value = DetermineColliderType(other.gameObject.layer);
+    int value = Utils.DetermineColliderType(other.gameObject.layer);
 
     if (parentAgent != null)
     {
@@ -21,16 +21,5 @@ public class SensorTrigger : MonoBehaviour
   private void OnTriggerExit(Collider other)
   {
     parentAgent.UpdateSensorValue(direction, 0);
-  }
-  private int DetermineColliderType(int layer)
-  {
-    if (layer == LayerMask.NameToLayer("Objects"))
-      return 1; // Objects
-    else if (layer == LayerMask.NameToLayer("Obstacles"))
-      return 2; // Obstacles
-    else if (layer == LayerMask.NameToLayer("Stacks"))
-      return 3; // Stacks
-    else
-      return 0; // No collision or unknown layer
   }
 }
