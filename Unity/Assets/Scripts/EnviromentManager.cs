@@ -92,9 +92,9 @@ public class EnvironmentManager : MonoBehaviour
         // This is where you'd implement the logic to get the action from the server
         // For now, we'll just return a random action
         await Task.Delay(20); // Simulating network delay
-        // char randomDirection = Utils.Direction2Name(Utils.directions[Random.Range(0, Utils.directions.Length)]);
-        // return $"M{randomDirection}";
-        return GetNextAction(actions);
+        char randomDirection = Utils.Direction2Name(Utils.directions[Random.Range(0, Utils.directions.Length)]);
+        return $"M{randomDirection}";
+        // return GetNextAction(actions);
     }
 
     private string GetNextAction(List<string> actions)
