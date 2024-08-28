@@ -79,20 +79,20 @@ public class Agent : MonoBehaviour
         }
     }
 
-    public async Task ExecuteAction(string action)
+    public async Task ExecuteAction(ActionSintax action)
     {
         actionCompletionSource = new TaskCompletionSource<bool>();
 
-        switch (action[0])
+        switch (action.action)
         {
-            case 'M':
-                await Move(action[1], EnvironmentManager.iterationDuration);
+            case "M":
+                await Move(char.Parse(action.direction), EnvironmentManager.iterationDuration);
                 break;
-            case 'G':
-                await Grab(action[1], EnvironmentManager.iterationDuration);
+            case "G":
+                await Grab(char.Parse(action.direction), EnvironmentManager.iterationDuration);
                 break;
-            case 'D':
-                await Drop(action[1], EnvironmentManager.iterationDuration);
+            case "D":
+                await Drop(char.Parse(action.direction), EnvironmentManager.iterationDuration);
                 break;
             default:
                 Debug.LogError($"Unknown action: {action}");

@@ -16,7 +16,7 @@ public class EnvironmentManager : MonoBehaviour
     private Dictionary<int, Dictionary<char, int>> agentSensorData = new Dictionary<int, Dictionary<char, int>>();
     private List<PositionData> allAgentData = new List<PositionData>();
 
-    public delegate void AgentActionDelegate(int Id, string action);
+    public delegate void AgentActionDelegate(int Id, ActionSintax action);
     public static event AgentActionDelegate OnAgentAction;
 
     private bool isSimulationRunning = false;
@@ -40,29 +40,10 @@ public class EnvironmentManager : MonoBehaviour
         isSimulationRunning = true;
         while (isSimulationRunning)
         {
-            // // await RunIteration();
             // // Here you would send the collected data to the server and wait for new instructions
             // // For now, we'll just pause briefly
+            await RunIteration();
 
-            PositionData smt = new PositionData
-            {
-                id = 1,
-                position = new Dictionary<char, int>
-                {
-                    { 'F', 0 },
-                    { 'B', 0 },
-                    { 'L', 1 },
-                    { 'R', 1 }
-                }
-            };
-
-
-
-            // string fuckall2 = JsonUtility.ToJson(fuckall);
-
-            string text = await Utils.SendGetRequestWithStructDataAsync(JsonConvert.SerializeObject(smt));
-            Debug.Log("Request awaited!");
-            Debug.Log($"Request response: {text}");
             await Task.Delay(1000);
         }
     }
@@ -74,7 +55,7 @@ public class EnvironmentManager : MonoBehaviour
         // Start all agent actions
         foreach (Agent agent in Enviroment.agents)
         {
-            string action = await GetActionFromServer(agent.id);
+            ActionSintax action = await GetActionFromServer(agent.id);
             agentTasks.Add(ExecuteAgentAction(agent, action));
         }
 
@@ -102,7 +83,7 @@ public class EnvironmentManager : MonoBehaviour
         }
     }
 
-    private async Task ExecuteAgentAction(Agent agent, string action)
+    private async Task ExecuteAgentAction(Agent agent, ActionSintax action)
     {
         OnAgentAction?.Invoke(agent.id, action);
         await agent.ExecuteAction(action);
@@ -120,14 +101,32 @@ public class EnvironmentManager : MonoBehaviour
         "DF",
     };
 
-    private async Task<string> GetActionFromServer(int agentId)
+    private async Task<ActionSintax> GetActionFromServer(int agentId)
     {
         // This is where you'd implement the logic to get the action from the server
         // For now, we'll just return a random action
+
+        PositionData smt = new PositionData
+        {
+            id = 1,
+            position = new Dictionary<char, int>
+                {
+                    { 'F', 0 },
+                    { 'B', 0 },
+                    { 'L', 1 },
+                    { 'R', 1 }
+                }
+        };
+
+        string response = await Utils.SendGetRequestWithStructDataAsync(JsonConvert.SerializeObject(smt));
+        Debug.Log(response);
+
+        ActionSintax action = JsonConvert.DeserializeObject<ActionSintax>(response);
+
         await Task.Delay(20); // Simulating network delay
-        char randomDirection = Utils.Direction2Name(Utils.directions[Random.Range(0, Utils.directions.Length)]);
-        return $"M{randomDirection}";
+        // char randomDirection = Utils.Direction2Name(Utils.directions[Random.Range(0, Utils.directions.Length)]);
         // return GetNextAction(actions);
+        return action;
     }
 
     private string GetNextAction(List<string> actions)

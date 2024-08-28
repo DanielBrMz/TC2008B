@@ -12,6 +12,13 @@ public class PositionData
     public Dictionary<char, int> position;
 }
 
+[System.Serializable]
+public class ActionSintax
+{
+    public string action;
+    public string direction;
+}
+
 
 
 public class Utils : MonoBehaviour
