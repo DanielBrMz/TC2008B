@@ -84,17 +84,25 @@ class RobotAgent(ap.Agent):
         ]
 
     def update_state(self, perception_json):
+        print(f"Updating state with perception: {perception_json}")
         perception = json.loads(perception_json)
         self.onto_robot.id = perception["id"]
         for direction, value in perception["position"].items():
-            setattr(self.onto_robot, f"has_perception_{direction}", onto[direction](value))
+            direction_class = onto[direction]
+            if direction_class is not None:
+                setattr(self.onto_robot, f"has_perception_{direction}", direction_class(value))
+            else:
+                print(f"Warning: Direction '{direction}' not found in ontology")
         self.onto_robot.is_holding = [onto.Object()] if self.onto_robot.is_holding else []
+        print(f"State updated. Robot ID: {self.onto_robot.id}, Holding: {bool(self.onto_robot.is_holding)}")
+
 
     def check_rule(self, rule, state):
         for key, value in rule.items():
             if key == "perception":
                 for direction, expected in value.items():
-                    if getattr(self.onto_robot, f"has_perception_{direction}").value != expected:
+                    actual = getattr(self.onto_robot, f"has_perception_{direction}", None)
+                    if actual is None or actual.value != expected:
                         return False
             elif key == "is_holding":
                 if bool(self.onto_robot.is_holding) != value:
@@ -102,23 +110,27 @@ class RobotAgent(ap.Agent):
         return True
 
     def perception(self):
+        print("Checking rules for perception")
         for rule, action in self.rules:
             if self.check_rule(rule, self.onto_robot):
+                print(f"Rule matched: {rule}, Action: {action}")
                 return action
-
-        # If no rule matches, choose a random direction to move
+        print("No rule matched, choosing random move")
         return f"move_{random.choice(['F', 'B', 'L', 'R'])}"
 
     def act(self, action):
+        print(f"Acting: {action}")
         if action.startswith("move_"):
             self.movements += 1
         return action
 
     def reason(self):
+        print("Reasoning about action")
         action = self.perception()
         return json.dumps({"action": action})
 
     def step(self, perception_json):
+        print(f"Step method called with perception: {perception_json}")
         self.update_state(perception_json)
         action_json = self.reason()
         action = json.loads(action_json)["action"]
