@@ -200,7 +200,7 @@ class ObjectStackingModel(ap.Model):
             new_x, new_y = x + dx, y + dy
 
             if 0 <= new_x < self.grid_size and 0 <= new_y < self.grid_size:
-                cell_content = self.grid[new_x, new_y]
+                cell_content = self.grid.agents[new_x, new_y]  # Changed this line
                 if not cell_content:
                     perception[direction] = 0
                 elif any(isinstance(agent, RobotAgent) for agent in cell_content):
@@ -267,6 +267,15 @@ class ObjectStackingModel(ap.Model):
                     self.stacks[stack_key] += 1
 
     def step(self):
+        self.current_step += 1
+
+        for robot in self.robots:
+            perception_json = self.get_perception(robot)
+            action = robot.step(perception_json)
+            self.update_environment(robot, action)
+
+        if self.check_end_condition():
+            self.stop()
         self.current_step += 1
 
         for robot in self.robots:

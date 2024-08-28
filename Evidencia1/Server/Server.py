@@ -135,6 +135,75 @@ def robot_actions():
                     "direction": direction
                 })
 
+                # Update the environment based on the action
+                model.update_environment(robot, action)
+
+            except Exception as e:
+                app.logger.error(f"Error in robot.step() for robot {robot_id}: {str(e)}")
+                app.logger.error(traceback.format_exc())
+
+        # Increment the model's step counter
+        model.current_step += 1
+
+        # Check end condition
+        if model.check_end_condition():
+            app.logger.info("Simulation ended")
+            model.end()
+
+        return jsonify(actions)
+
+    except Exception as e:
+        app.logger.error(f"An error occurred: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return jsonify({"error": "An internal server error occurred", "details": str(e)}), 500
+
+    try:
+        data = request.json
+        
+        app.logger.debug(f"Received data: {data}")
+
+        if not isinstance(data, list):
+            return jsonify({"error": "Invalid input. Expected an array of robot perceptions."}), 400
+
+        # Initialize a new model for each request
+        model = ObjectStackingModel(parameters)
+        model.setup()
+
+        actions = []
+
+        for robot_perception in data:
+            if 'id' not in robot_perception or 'position' not in robot_perception:
+                return jsonify({"error": "Invalid input. Each robot perception must have 'id' and 'position'."}), 400
+
+            robot_id = robot_perception['id']
+            perception = robot_perception['position']
+
+            robot = next((r for r in model.robots if r.onto_robot.id == robot_id), None)
+            if robot is None:
+                app.logger.error(f"Robot with id {robot_id} not found.")
+                continue
+
+            app.logger.debug(f"Processing robot: {robot.onto_robot.id}, Position: {robot.onto_robot.has_position}, Holding: {robot.is_holding_box}")
+
+            perception_json = json.dumps({
+                "id": robot_id,
+                "position": perception
+            })
+
+            try:
+                action = robot.step(perception_json)
+                app.logger.debug(f"Action taken by robot {robot_id}: {action}")
+                
+                action_parts = action.split('_')
+                action_type = action_parts[0]
+                direction = action_parts[1] if len(action_parts) > 1 else None
+
+                actions.append({
+                    "id": robot_id,
+                    "action": action_type.capitalize()[0],
+                    "direction": direction
+                })
+
             except Exception as e:
                 app.logger.error(f"Error in robot.step() for robot {robot_id}: {str(e)}")
                 app.logger.error(traceback.format_exc())
