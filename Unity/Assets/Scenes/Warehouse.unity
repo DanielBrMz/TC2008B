@@ -358,6 +358,10 @@ PrefabInstance:
       value: 0.1
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
+      propertyPath: apiUrl
+      value: http://127.0.0.1:5000/gmes
+      objectReference: {fileID: 0}
+    - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: maxIterationDuration
       value: 0.1
       objectReference: {fileID: 0}

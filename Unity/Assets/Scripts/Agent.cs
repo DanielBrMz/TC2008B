@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.VisualScripting;
@@ -82,24 +83,32 @@ public class Agent : MonoBehaviour
     public async Task ExecuteAction(ActionSintax action)
     {
         actionCompletionSource = new TaskCompletionSource<bool>();
-
-        switch (action.action)
+        try
         {
-            case "M":
-                await Move(char.Parse(action.direction), EnvironmentManager.iterationDuration);
-                break;
-            case "G":
-                await Grab(char.Parse(action.direction), EnvironmentManager.iterationDuration);
-                break;
-            case "D":
-                await Drop(char.Parse(action.direction), EnvironmentManager.iterationDuration);
-                break;
-            case "W":
-                break;
-            default:
-                Debug.LogError($"Unknown action: {action}");
-                actionCompletionSource.SetResult(true);
-                break;
+            switch (action.action)
+            {
+                case "M":
+                    await Move(char.Parse(action.direction), EnvironmentManager.iterationDuration);
+                    break;
+                case "G":
+                    await Grab(char.Parse(action.direction), EnvironmentManager.iterationDuration);
+                    break;
+                case "D":
+                    await Drop(char.Parse(action.direction), EnvironmentManager.iterationDuration);
+                    break;
+                case "W":
+                    ActionCompleted();
+                    break;
+                default:
+                    Debug.LogError($"Unknown action: {action.action}");
+                    ActionCompleted();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error executing action: {ex}");
+            ActionCompleted();
         }
 
         await actionCompletionSource.Task;
@@ -119,6 +128,7 @@ public class Agent : MonoBehaviour
         if (value != 0)
         {
             Debug.LogWarning($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
+            ActionCompleted();
             return;
         }
 
@@ -144,47 +154,45 @@ public class Agent : MonoBehaviour
             await Task.Yield();
         }
         transform.position = targetPosition;
+        ActionCompleted();
     }
 
     public async Task Grab(char dir, float timeToMove)
     {
-        if (hasObject)
-        {
-            Debug.LogWarning($"Ag:{id} Already holding an object");
-            return;
-        }
-
-        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
-        Object objectToGrab = FindObjectInCollider(directionCollider);
-
-        if (objectToGrab == null)
-        {
-            Debug.LogError($"Ag:{id} No object to grab in direction {dir}");
-            return;
-        }
-
-        if (!await objectToGrab.TryGrab())
-        {
-            Debug.LogWarning($"Ag:{id} Failed to grab object, it was already being grabbed");
-            return;
-        }
-
-        Vector3 objStartPos = objectToGrab.transform.position;
-        Vector3 agStartPos = transform.position;
-        Vector2Int newPos = pos + Name2Direction(dir);
-        Vector3 targetPosition = Enviroment.CalculateObjectPosition(newPos);
-        Vector3 aboveAgentPos = targetPosition + Vector3.up * grabHeight;
-
-        float elapsedTime = 0f;
-        bool grabSuccessful = true;
-
         try
         {
+            if (hasObject)
+            {
+                Debug.LogWarning($"Ag:{id} Already holding an object");
+                return;
+            }
+
+            Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
+            Object objectToGrab = FindObjectInCollider(directionCollider);
+            if (objectToGrab == null)
+            {
+                Debug.LogError($"Ag:{id} No object to grab in direction {dir}");
+                return;
+            }
+
+            if (!await objectToGrab.TryGrab())
+            {
+                Debug.LogWarning($"Ag:{id} Failed to grab object, it was already being grabbed");
+                return;
+            }
+
+            Vector3 objStartPos = objectToGrab.transform.position;
+            Vector3 agStartPos = transform.position;
+            Vector2Int newPos = pos + Name2Direction(dir);
+            Vector3 targetPosition = Enviroment.CalculateObjectPosition(newPos);
+            Vector3 aboveAgentPos = targetPosition + Vector3.up * grabHeight;
+            float elapsedTime = 0f;
+            bool grabSuccessful = true;
+
             while (elapsedTime < EnvironmentManager.iterationDuration)
             {
                 float remainingTime = EnvironmentManager.iterationDuration - elapsedTime;
                 float t = Mathf.Clamp01(elapsedTime / timeToMove);
-
                 objectToGrab.transform.position = Vector3.Lerp(objStartPos, aboveAgentPos, t);
                 transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
 
@@ -216,114 +224,142 @@ public class Agent : MonoBehaviour
                 await MoveBack(agStartPos, remainingTime);
                 Debug.LogWarning($"Ag:{id} Failed to grab object, it was deactivated during grab attempt");
             }
-        }
-        finally
-        {
+
             if (!grabSuccessful)
             {
                 objectToGrab.CancelGrab();
             }
         }
-    }
-
-    private async Task MoveBack(Vector3 startPos, float duration)
-    {
-        float elapsedTime = 0f;
-        Vector3 currentPos = transform.position;
-
-        while (elapsedTime < duration)
+        catch (Exception ex)
         {
-            float t = elapsedTime / duration;
-            transform.position = Vector3.Lerp(currentPos, startPos, t);
-            elapsedTime += Time.deltaTime;
-            await Task.Yield();
+            Debug.LogError($"Ag:{id} Error during grab operation: {ex.Message}");
         }
-
-        transform.position = startPos;
+        finally
+        {
+            ActionCompleted();
+        }
     }
 
     public async Task Drop(char dir, float timeToMove)
     {
-        Debug.Log($"Ag:{id} trying to drop item {dir}");
-        if (!hasObject || grabbedObject == null)
-        {
-            Debug.LogWarning($"Ag:{id} No object to drop");
-            return;
-        }
-
-        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
-        Stack targetStack = FindStackInCollider(directionCollider);
-        if (targetStack == null)
-        {
-            Debug.LogError($"Ag:{id} No stack to drop into in direction {dir}");
-            return;
-        }
-
-        if (!targetStack.TryLockForDropAsync())
-        {
-            Debug.LogWarning($"Ag:{id} Stack is currently being used by another agent");
-            return;
-        }
-
-        Vector3 objStartPos = grabbedObject.transform.position;
-        Vector3 targetPos = targetStack.GetNextItemPosition(targetStack.nItems + 1);
-        float elapsedTime = 0f;
-        bool dropSuccessful = false;
-
         try
         {
-            grabbedObject.isMoving = true;
-            while (elapsedTime < timeToMove)
+            Debug.Log($"Ag:{id} trying to drop item {dir}");
+            if (!hasObject || grabbedObject == null)
             {
-                float t = elapsedTime / timeToMove;
-                grabbedObject.transform.position = Vector3.Lerp(objStartPos, targetPos, t);
-                elapsedTime += Time.deltaTime;
-                await Task.Yield();
+                Debug.LogWarning($"Ag:{id} No object to drop");
+                return;
             }
 
-            // Ensure the object is at the final position
-            grabbedObject.transform.position = targetPos;
-
-            dropSuccessful = targetStack.TryAddItemAsync(grabbedObject);
-
-            if (dropSuccessful)
+            Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
+            Stack targetStack = FindStackInCollider(directionCollider);
+            if (targetStack == null)
             {
-                hasObject = false;
-                grabbedObject.ObjDrop(targetStack);
-                grabbedObject = null;
+                Debug.LogError($"Ag:{id} No stack to drop into in direction {dir}");
+                return;
             }
-            else
+
+            if (!targetStack.TryLockForDropAsync())
             {
-                grabbedObject.isMoving = false;
-                Debug.LogWarning($"Ag:{id} Failed to drop object into the stack!");
-                await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - timeToMove));
+                Debug.LogWarning($"Ag:{id} Stack is currently being used by another agent");
+                return;
+            }
+
+            Vector3 objStartPos = grabbedObject.transform.position;
+            Vector3 targetPos = targetStack.GetNextItemPosition(targetStack.nItems + 1);
+            float elapsedTime = 0f;
+            bool dropSuccessful = false;
+
+            try
+            {
+                grabbedObject.isMoving = true;
+                while (elapsedTime < timeToMove)
+                {
+                    float t = elapsedTime / timeToMove;
+                    grabbedObject.transform.position = Vector3.Lerp(objStartPos, targetPos, t);
+                    elapsedTime += Time.deltaTime;
+                    await Task.Yield();
+                }
+
+                // Ensure the object is at the final position
+                grabbedObject.transform.position = targetPos;
+                dropSuccessful = targetStack.TryAddItemAsync(grabbedObject);
+
+                if (dropSuccessful)
+                {
+                    hasObject = false;
+                    grabbedObject.ObjDrop(targetStack);
+                    grabbedObject = null;
+                }
+                else
+                {
+                    grabbedObject.isMoving = false;
+                    Debug.LogWarning($"Ag:{id} Failed to drop object into the stack!");
+                    await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - timeToMove));
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Ag:{id} Error during drop: {e.Message}");
+                await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime));
+            }
+            finally
+            {
+                targetStack.UnlockForDrop();
             }
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
-            Debug.LogError($"Ag:{id} Error during drop: {e.Message}");
-            await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime));
+            Debug.LogError($"Ag:{id} Unexpected error during drop operation: {e.Message}");
         }
         finally
         {
-            targetStack.UnlockForDrop();
+            ActionCompleted();
         }
     }
+
     private async Task MoveObjectBack(Vector3 startPos, float duration)
     {
-        float elapsedTime = 0f;
-        Vector3 currentPos = grabbedObject.transform.position;
-
-        while (elapsedTime < duration)
+        try
         {
-            float t = elapsedTime / duration;
-            grabbedObject.transform.position = Vector3.Lerp(currentPos, startPos, t);
-            elapsedTime += Time.deltaTime;
-            await Task.Yield();
+            float elapsedTime = 0f;
+            Vector3 currentPos = grabbedObject.transform.position;
+            while (elapsedTime < duration)
+            {
+                float t = elapsedTime / duration;
+                grabbedObject.transform.position = Vector3.Lerp(currentPos, startPos, t);
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+            }
+            grabbedObject.transform.position = startPos;
         }
-
-        grabbedObject.transform.position = startPos;
+        catch (Exception e)
+        {
+            Debug.LogError($"Ag:{id} Error during MoveObjectBack: {e.Message}");
+        }
     }
+
+    private async Task MoveBack(Vector3 startPos, float duration)
+    {
+        try
+        {
+            float elapsedTime = 0f;
+            Vector3 currentPos = transform.position;
+            while (elapsedTime < duration)
+            {
+                float t = elapsedTime / duration;
+                transform.position = Vector3.Lerp(currentPos, startPos, t);
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+            }
+            transform.position = startPos;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Ag:{id} Error during MoveBack: {e.Message}");
+        }
+    }
+
 
 
     private Object FindObjectInCollider(Collider directionCollider)
