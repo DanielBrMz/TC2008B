@@ -176,7 +176,7 @@ public class Enviroment : MonoBehaviour
             if (currentAgentId < nAgents)
             {
                 // GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
-                GameObject agObject = SpawnAgent(randomPos, currentAgentId + 1);
+                GameObject agObject = SpawnAgent(randomPos, currentAgentId);
                 agObject.transform.parent = agentsWrapper.transform;
                 Agent newAgent = agObject.GetComponent<Agent>();
                 agents.Add(newAgent);

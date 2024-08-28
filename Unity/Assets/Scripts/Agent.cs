@@ -94,6 +94,8 @@ public class Agent : MonoBehaviour
             case "D":
                 await Drop(char.Parse(action.direction), EnvironmentManager.iterationDuration);
                 break;
+            case "W":
+                break;
             default:
                 Debug.LogError($"Unknown action: {action}");
                 actionCompletionSource.SetResult(true);

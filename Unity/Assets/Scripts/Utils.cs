@@ -15,6 +15,7 @@ public class PositionData
 [System.Serializable]
 public class ActionSintax
 {
+    public int id;
     public string action;
     public string direction;
 }
