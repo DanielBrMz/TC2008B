@@ -178,7 +178,7 @@ class ObjectStackingModel(ap.Model):
 
         self.robots = ap.AgentList(self, self.num_robots, RobotAgent)
         for i, robot in enumerate(self.robots):
-            robot.onto_robot.id = i + 1
+            robot.onto_robot.id = i;
         self.grid.add_agents(self.robots, random=True, empty=True)
 
         self.objects = ap.AgentList(self, self.num_objects, ap.Agent)
