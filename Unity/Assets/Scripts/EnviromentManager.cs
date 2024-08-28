@@ -1,6 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Threading.Tasks;
+using UnityEditor;
+using Newtonsoft.Json;
 using UnityEngine;
 
 public class EnvironmentManager : MonoBehaviour
@@ -11,10 +14,11 @@ public class EnvironmentManager : MonoBehaviour
     public static float iterationDuration;
 
     private Dictionary<int, Dictionary<char, int>> agentSensorData = new Dictionary<int, Dictionary<char, int>>();
+    private List<PositionData> allAgentData = new List<PositionData>();
 
     public delegate void AgentActionDelegate(int Id, string action);
     public static event AgentActionDelegate OnAgentAction;
-    
+
     private bool isSimulationRunning = false;
 
     // Instruction utility variables
@@ -36,10 +40,30 @@ public class EnvironmentManager : MonoBehaviour
         isSimulationRunning = true;
         while (isSimulationRunning)
         {
-            await RunIteration();
-            // Here you would send the collected data to the server and wait for new instructions
-            // For now, we'll just pause briefly
-            await Task.Delay(100);
+            // // await RunIteration();
+            // // Here you would send the collected data to the server and wait for new instructions
+            // // For now, we'll just pause briefly
+
+            PositionData smt = new PositionData
+            {
+                id = 1,
+                position = new Dictionary<char, int>
+                {
+                    { 'F', 0 },
+                    { 'B', 0 },
+                    { 'L', 1 },
+                    { 'R', 1 }
+                }
+            };
+
+
+
+            // string fuckall2 = JsonUtility.ToJson(fuckall);
+
+            string text = await Utils.SendGetRequestWithStructDataAsync(JsonConvert.SerializeObject(smt));
+            Debug.Log("Request awaited!");
+            Debug.Log($"Request response: {text}");
+            await Task.Delay(1000);
         }
     }
 
@@ -67,6 +91,15 @@ public class EnvironmentManager : MonoBehaviour
         }
 
         // Here you would process the agentSensorData and prepare it for sending to the server
+        foreach (KeyValuePair<int, Dictionary<char, int>> kv in agentSensorData)
+        {
+            PositionData smt = new PositionData
+            {
+                id = kv.Key,
+                position = kv.Value
+            };
+            allAgentData.Add(smt);
+        }
     }
 
     private async Task ExecuteAgentAction(Agent agent, string action)
@@ -74,7 +107,7 @@ public class EnvironmentManager : MonoBehaviour
         OnAgentAction?.Invoke(agent.id, action);
         await agent.ExecuteAction(action);
     }
-    
+
     List<string> actions = new List<string>{
         "GB",
         "MF",
@@ -98,19 +131,19 @@ public class EnvironmentManager : MonoBehaviour
     }
 
     private string GetNextAction(List<string> actions)
-{
-    if (actions == null || actions.Count == 0)
     {
-        StopSimulation();
-    }
+        if (actions == null || actions.Count == 0)
+        {
+            StopSimulation();
+        }
 
-    if (_i >= actions.Count)
-    {
-        _i = 0; // Reset to the beginning if we've reached the end
-    }
+        if (_i >= actions.Count)
+        {
+            _i = 0; // Reset to the beginning if we've reached the end
+        }
 
-    return actions[_i++];
-}
+        return actions[_i++];
+    }
 
     public void StopSimulation()
     {

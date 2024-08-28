@@ -381,15 +381,15 @@ public class Agent : MonoBehaviour
 
     public Task<Dictionary<char, int>> GetSensorData()
     {
-        Dictionary<char, int> newCols = new Dictionary<char, int>();
-        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
-        {
-            char direction = sensor.Key;
-            SensorTrigger trigger = sensor.Value;
-            newCols[direction] = trigger.GetSensorValue();
-        }
+        // Dictionary<char, int> newCols = new Dictionary<char, int>();
+        // foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
+        // {
+        //     char direction = sensor.Key;
+        //     SensorTrigger trigger = sensor.Value;
+        //     newCols[direction] = trigger.GetSensorValue();
+        // }
 
-        return Task.FromResult(newCols);
+        return Task.FromResult(cols);
     }
 
     private void UpdateContactSensorPosition()

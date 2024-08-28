@@ -14,7 +14,8 @@ public class SensorTrigger : MonoBehaviour
     if (parentAgent != null)
     {
       parentAgent.UpdateSensorValue(direction, value);
-    } else 
+    }
+    else
     {
       Debug.LogError("The parent agent is not set correctly");
     }
@@ -27,7 +28,8 @@ public class SensorTrigger : MonoBehaviour
     if (parentAgent != null)
     {
       parentAgent.UpdateSensorValue(direction, value);
-    } else 
+    }
+    else
     {
       Debug.LogError("The parent agent is not set correctly");
     }
