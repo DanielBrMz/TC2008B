@@ -307,8 +307,6 @@ public class Agent : MonoBehaviour
             targetStack.UnlockForDrop();
         }
     }
-
-
     private async Task MoveObjectBack(Vector3 startPos, float duration)
     {
         float elapsedTime = 0f;
