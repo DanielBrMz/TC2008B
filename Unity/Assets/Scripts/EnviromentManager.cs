@@ -24,7 +24,6 @@ public class EnvironmentManager : MonoBehaviour
     // Instruction utility variables
     private int _i = 0;
 
-
     private void Awake()
     {
         iterationDuration = maxIterationDuration;
@@ -32,12 +31,31 @@ public class EnvironmentManager : MonoBehaviour
 
     public async void Initialize()
     {
+        InitializeAgentPositions();
         await StartSimulation();
+    }
+
+    public async void InitializeAgentPositions()
+    {
+        foreach (Agent agent in Enviroment.agents)
+        {
+            agentSensorData[agent.id] = await agent.GetSensorData();
+            foreach (KeyValuePair<int, Dictionary<char, int>> kv in agentSensorData)
+            {
+                PositionData data = new PositionData
+                {
+                    id = kv.Key,
+                    position = kv.Value
+                };
+                allAgentData.Add(data);
+            }
+        }
     }
 
     public async Task StartSimulation()
     {
         isSimulationRunning = true;
+
         while (isSimulationRunning)
         {
             // // Here you would send the collected data to the server and wait for new instructions
@@ -53,10 +71,10 @@ public class EnvironmentManager : MonoBehaviour
         List<Task> agentTasks = new List<Task>();
 
         // Start all agent actions
-        foreach (Agent agent in Enviroment.agents)
+        foreach (PositionData agent in allAgentData)
         {
-            ActionSintax action = await GetActionFromServer(agent.id);
-            agentTasks.Add(ExecuteAgentAction(agent, action));
+            ActionSintax action = await GetActionFromServer(agent.id, agent);
+            agentTasks.Add(ExecuteAgentAction(Enviroment.agents[agent.id - 1], action));
         }
 
         // Wait for all actions to complete or for the max duration to elapse
@@ -101,29 +119,27 @@ public class EnvironmentManager : MonoBehaviour
         "DF",
     };
 
-    private async Task<ActionSintax> GetActionFromServer(int agentId)
+    private async Task<ActionSintax> GetActionFromServer(int agentId, PositionData data)
     {
         // This is where you'd implement the logic to get the action from the server
         // For now, we'll just return a random action
 
-        PositionData smt = new PositionData
-        {
-            id = 1,
-            position = new Dictionary<char, int>
-                {
-                    { 'F', 0 },
-                    { 'B', 0 },
-                    { 'L', 1 },
-                    { 'R', 1 }
-                }
-        };
+        // PositionData smt = new PositionData
+        // {
+        //     id = 1,
+        //     position = new Dictionary<char, int>
+        //         {
+        //             { 'F', 0 },
+        //             { 'B', 0 },
+        //             { 'L', 1 },
+        //             { 'R', 1 }
+        //         }
+        // };
 
-        string response = await Utils.SendGetRequestWithStructDataAsync(JsonConvert.SerializeObject(smt));
-        Debug.Log(response);
+        string response = await Utils.SendGetRequestWithStructDataAsync(JsonConvert.SerializeObject(data));
+        // Debug.Log(response);
 
         ActionSintax action = JsonConvert.DeserializeObject<ActionSintax>(response);
-
-        await Task.Delay(20); // Simulating network delay
         // char randomDirection = Utils.Direction2Name(Utils.directions[Random.Range(0, Utils.directions.Length)]);
         // return GetNextAction(actions);
         return action;

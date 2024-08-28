@@ -117,7 +117,7 @@ public class Utils : MonoBehaviour
 
     public static async Task<string> SendGetRequestWithStructDataAsync(string rawInfo)
     {
-        string baseUrl = "https://7027-200-36-253-241.ngrok-free.app/gmrs"; // Replace with your actual endpoint
+        string baseUrl = "https://7027-200-36-253-241.ngrok-free.app/gmes"; // Replace with your actual endpoint
 
         using (UnityWebRequest webRequest = UnityWebRequest.Post(baseUrl, rawInfo, "application/json"))
         {

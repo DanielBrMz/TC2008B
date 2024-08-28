@@ -4,6 +4,8 @@ using UnityEditor.SearchService;
 using System.Linq;
 using Unity.VisualScripting;
 using UnityEngine.UIElements;
+using UnityEditor;
+using System.Runtime.InteropServices;
 
 public class Enviroment : MonoBehaviour
 {
@@ -57,6 +59,8 @@ public class Enviroment : MonoBehaviour
     private List<GameObject> stacks;
 
     public static List<Agent> agents;
+
+    public static int agentIds;
 
     // Update is called once per frame
     private void Awake()
@@ -141,7 +145,8 @@ public class Enviroment : MonoBehaviour
     }
 
     private void InitializeStaticVariables()
-    {
+    {   
+        agentIds = nAgents;
         nTiles = n;
         mTiles = m;
         tileSize = tileDimensions;
@@ -171,7 +176,7 @@ public class Enviroment : MonoBehaviour
             if (currentAgentId < nAgents)
             {
                 // GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
-                GameObject agObject = SpawnAgent(randomPos, 1);
+                GameObject agObject = SpawnAgent(randomPos, currentAgentId + 1);
                 agObject.transform.parent = agentsWrapper.transform;
                 Agent newAgent = agObject.GetComponent<Agent>();
                 agents.Add(newAgent);
