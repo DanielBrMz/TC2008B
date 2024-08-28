@@ -89,6 +89,8 @@ class RobotAgent(ap.Agent):
         perception = json.loads(perception_json)
         self.onto_robot.id = perception["id"]
         self.perception_data = perception["position"]
+        self.is_holding_box = perception["is_holding"]
+        
         print(f"State updated. Robot ID: {self.onto_robot.id}, Holding: {self.is_holding_box}, Perception: {self.perception_data}")
 
     def check_rule(self, rule):
@@ -149,8 +151,8 @@ class RobotAgent(ap.Agent):
         print(f"Acting: {action}")
         if action.startswith("move_"):
             self.movements += 1
-        elif action.startswith("grab_"):
-            self.is_holding_box = True
+        # elif action.startswith("grab_"):
+        #     self.is_holding_box = True
         elif action.startswith("drop_"):
             self.is_holding_box = False
         return action
@@ -214,7 +216,8 @@ class ObjectStackingModel(ap.Model):
 
         return json.dumps({
             "id": robot.onto_robot.id,
-            "position": perception
+            "position": perception,
+            "is_holding": robot.is_holding_box,
         })
 
     def update_environment(self, robot, action):

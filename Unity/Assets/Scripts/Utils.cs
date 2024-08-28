@@ -10,6 +10,7 @@ public class PositionData
 {
     public int id;
     public Dictionary<char, int> position;
+    public bool is_holding;
 }
 
 [System.Serializable]
@@ -95,25 +96,6 @@ public class Utils : MonoBehaviour
             default:
                 return "Undefined";
         }
-    }
-
-    public static List<PositionData> RawDataToPDA(List<Dictionary<int, Dictionary<char, int>>> rawData)
-    {
-        List<PositionData> data = new List<PositionData>();
-        foreach (Dictionary<int, Dictionary<char, int>> dict in rawData)
-        {
-            foreach (KeyValuePair<int, Dictionary<char, int>> kv in dict)
-            {
-                PositionData sAgentData = new PositionData
-                {
-                    id = kv.Key,
-                    position = kv.Value
-                };
-                data.Add(sAgentData);
-            }
-        }
-        
-        return data;
     }
 
     public static async Task<string> SendGetRequestWithStructDataAsync(string baseUrl, string rawInfo)

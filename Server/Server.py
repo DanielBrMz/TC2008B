@@ -28,6 +28,7 @@ def robot_action():
 
         robot_id = data['id']
         perception = data['position']
+        is_holding = data['is_holding']
 
         app.logger.debug(f"Current robots in model: {[r.onto_robot.id for r in model.robots]}")
 
@@ -40,7 +41,8 @@ def robot_action():
 
         perception_json = json.dumps({
             "id": robot_id,
-            "position": perception
+            "position": perception,
+            "is_holding": is_holding
         })
 
         app.logger.debug(f"Perception JSON: {perception_json}")
@@ -103,11 +105,12 @@ def robot_actions():
         actions = []
 
         for robot_perception in data:
-            if 'id' not in robot_perception or 'position' not in robot_perception:
+            if 'id' not in robot_perception or 'position' not in robot_perception or 'is_holding' not in robot_perception:
                 return jsonify({"error": "Invalid input. Each robot perception must have 'id' and 'position'."}), 400
 
             robot_id = robot_perception['id']
             perception = robot_perception['position']
+            is_holding = robot_perception['is_holding']
 
             robot = next((r for r in model.robots if r.onto_robot.id == robot_id), None)
             if robot is None:
@@ -118,7 +121,8 @@ def robot_actions():
 
             perception_json = json.dumps({
                 "id": robot_id,
-                "position": perception
+                "position": perception,
+                "is_holding": is_holding
             })
 
             try:

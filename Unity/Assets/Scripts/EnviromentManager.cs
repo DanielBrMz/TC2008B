@@ -12,11 +12,15 @@ public class EnvironmentManager : MonoBehaviour
 {
     // Set this with a slider to set the delay in which in iteration is finished and we send the current enviroment info to the server
     [Header("Manager parameters")]
-    [SerializeField] private float maxIterationDuration = 1f; // Maximum duration for an iteration
+    [SerializeField] private float maxIterationDurationDepreciated = 1f; // Maximum duration for an iteration
     [SerializeField] private string apiUrl = "http://127.0.0.1:5000/gmes";
-    public static float iterationDuration;
+    public static float suggestedIterationDuration;
+    [SerializeField] private int startupDelay = 5;
+    [SerializeField] private int iterationDelay = 500;
 
-    private Dictionary<int, Dictionary<char, int>> agentSensorData = new Dictionary<int, Dictionary<char, int>>();
+    private List<Stack> allStacks = new List<Stack>();
+    private int fullStackCount = 0;
+
     private List<PositionData> allAgentData = new List<PositionData>();
 
 
@@ -25,30 +29,38 @@ public class EnvironmentManager : MonoBehaviour
 
     private void Awake()
     {
-        iterationDuration = maxIterationDuration;
+        suggestedIterationDuration = maxIterationDurationDepreciated;
+    }
+
+    private void Start()
+    {
+        allStacks = new List<Stack>(FindObjectsOfType<Stack>());
+        Stack.OnStackFull += HandleStackFull;
     }
 
     public async void Initialize()
     {
-        InitializeAgentPositions();
+        await InitializeAgentPositions();
+        await Task.Delay(startupDelay * 1000);
         await StartSimulation();
     }
 
-    public async void InitializeAgentPositions()
+    public async Task InitializeAgentPositions()
     {
+        allAgentData.Clear(); // Clear the list before populating
         foreach (Agent agent in Enviroment.agents)
         {
-            agentSensorData[agent.id] = await agent.GetSensorData();
-            foreach (KeyValuePair<int, Dictionary<char, int>> kv in agentSensorData)
+            var sensorData = await agent.GetSensorData();
+
+            PositionData data = new PositionData
             {
-                PositionData data = new PositionData
-                {
-                    id = kv.Key,
-                    position = kv.Value
-                };
-                allAgentData.Add(data);
-            }
+                id = agent.id,
+                position = sensorData,
+                is_holding = agent.hasObject
+            };
+            allAgentData.Add(data);
         }
+        Debug.Log($"Initialized {allAgentData.Count} agents;");
     }
 
     public async Task StartSimulation()
@@ -75,7 +87,7 @@ public class EnvironmentManager : MonoBehaviour
         while (!ct.IsCancellationRequested)
         {
             await RunIteration(ct);
-            await Task.Delay(1000, ct);
+            await Task.Delay(iterationDelay, ct);
         }
     }
 
@@ -94,37 +106,46 @@ public class EnvironmentManager : MonoBehaviour
         // Wait for all actions to complete or for the max duration to elapse
         await Task.WhenAny(
             Task.WhenAll(agentTasks)
-            // Task.Delay((int)(maxIterationDuration * 1000))
+        // Task.Delay((int)(maxIterationDuration * 1000))
         );
 
         // If the process is cancelled kill all threads
         if (ct.IsCancellationRequested) return;
-        allAgentData.Clear();
 
+        // Ensure all sensor data is up to date
+        await Task.Yield();
+
+        allAgentData.Clear();
         // If it was successfull get the sensor data and do it again
         foreach (Agent agent in Enviroment.agents)
         {
-            agentSensorData[agent.id] = await agent.GetSensorData();
+            var sensorData = await agent.GetSensorData();
             PositionData smt = new PositionData
             {
                 id = agent.id,
-                position = agentSensorData[agent.id]
+                position = sensorData,
+                is_holding = agent.hasObject
             };
             allAgentData.Add(smt);
         }
+
+        Debug.Log($"Got info from {allAgentData.Count} agents;");
     }
 
     private async Task ExecuteAgentAction(ActionSintax action, CancellationToken ct)
     {
         if (ct.IsCancellationRequested) return;
 
-        Debug.Log($"Ag{action.id} processing action");
         await Enviroment.agents[action.id].ExecuteAction(action);
     }
 
     private async Task<List<ActionSintax>> GetActionsFromServer(List<PositionData> data)
     {
-        string response = await Utils.SendGetRequestWithStructDataAsync(apiUrl, JsonConvert.SerializeObject(data));
+        Debug.LogWarning("Request sent!!! ===>");
+        string json = JsonConvert.SerializeObject(data);
+        Debug.Log("Sent: " + json);
+        string response = await Utils.SendGetRequestWithStructDataAsync(apiUrl, json);
+        Debug.LogWarning("Resp: " + response);
         return JsonConvert.DeserializeObject<List<ActionSintax>>(response);
     }
 
@@ -138,8 +159,20 @@ public class EnvironmentManager : MonoBehaviour
         StopSimulation();
     }
 
-    private void OnApplicationQuit() {
+    private void OnApplicationQuit()
+    {
         StopSimulation();
     }
+
+    private void HandleStackFull(Stack stack)
+    {
+        fullStackCount++;
+        if (fullStackCount == allStacks.Count)
+        {
+            Debug.Log("Simulation success. All stacks are full");
+            StopSimulation();
+        }
+    }
+
 }
 

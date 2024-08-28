@@ -40,14 +40,13 @@ public class Agent : MonoBehaviour
 
     // Enviroment
     private Vector3 targetPosition;
-    private Coroutine moveCorutine;
-    private Coroutine grabObjCorutine;
+
+    private Dictionary<char, int> _sensorValues = new Dictionary<char, int>();
+    private object _lock = new object();
 
 
     private void Awake()
     {
-
-        SetupCollisionMatrix();
         GenerateSensors();
     }
 
@@ -88,15 +87,19 @@ public class Agent : MonoBehaviour
             switch (action.action)
             {
                 case "M":
-                    await Move(char.Parse(action.direction), EnvironmentManager.iterationDuration);
+                    // Debug.Log($"Ag:{id} is schomving!");
+                    await Move(char.Parse(action.direction), EnvironmentManager.suggestedIterationDuration);
                     break;
                 case "G":
-                    await Grab(char.Parse(action.direction), EnvironmentManager.iterationDuration);
+                    // Debug.Log($"Ag:{id} is grabbing!");
+                    await Grab(char.Parse(action.direction), EnvironmentManager.suggestedIterationDuration);
                     break;
                 case "D":
-                    await Drop(char.Parse(action.direction), EnvironmentManager.iterationDuration);
+                    // Debug.Log($"Ag:{id} is dropping!");
+                    await Drop(char.Parse(action.direction), EnvironmentManager.suggestedIterationDuration);
                     break;
                 case "W":
+                    Debug.Log($"Ag:{id} waited instead of doing anything at all");
                     ActionCompleted();
                     break;
                 default:
@@ -116,6 +119,7 @@ public class Agent : MonoBehaviour
 
     public void ActionCompleted()
     {
+        // Debug.Log($"Ag:{id} finished his action!");
         actionCompletionSource?.TrySetResult(true);
     }
 
@@ -127,7 +131,7 @@ public class Agent : MonoBehaviour
         Vector2Int newPos = pos + Name2Direction(direction);
         if (value != 0)
         {
-            Debug.LogWarning($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
+            Debug.LogError($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
             ActionCompleted();
             return;
         }
@@ -140,7 +144,7 @@ public class Agent : MonoBehaviour
 
         Vector3 startPos = transform.position;
         float elapsedTime = 0f;
-        while (elapsedTime < EnvironmentManager.iterationDuration)
+        while (elapsedTime < EnvironmentManager.suggestedIterationDuration)
         {
             elapsedTime += Time.deltaTime;
             float t = Mathf.Clamp01(elapsedTime / timeToMove);
@@ -163,7 +167,7 @@ public class Agent : MonoBehaviour
         {
             if (hasObject)
             {
-                Debug.LogWarning($"Ag:{id} Already holding an object");
+                Debug.LogError($"Ag:{id} Already holding an object");
                 return;
             }
 
@@ -177,7 +181,7 @@ public class Agent : MonoBehaviour
 
             if (!await objectToGrab.TryGrab())
             {
-                Debug.LogWarning($"Ag:{id} Failed to grab object, it was already being grabbed");
+                Debug.Log($"Ag:{id} Failed to grab object, it was already being grabbed");
                 return;
             }
 
@@ -189,9 +193,9 @@ public class Agent : MonoBehaviour
             float elapsedTime = 0f;
             bool grabSuccessful = true;
 
-            while (elapsedTime < EnvironmentManager.iterationDuration)
+            while (elapsedTime < EnvironmentManager.suggestedIterationDuration)
             {
-                float remainingTime = EnvironmentManager.iterationDuration - elapsedTime;
+                float remainingTime = EnvironmentManager.suggestedIterationDuration - elapsedTime;
                 float t = Mathf.Clamp01(elapsedTime / timeToMove);
                 objectToGrab.transform.position = Vector3.Lerp(objStartPos, aboveAgentPos, t);
                 transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
@@ -217,10 +221,12 @@ public class Agent : MonoBehaviour
                 grabbedObject = objectToGrab;
                 objectToGrab.ObjGrab(transform);
                 pos = newPos;
+                // Make sure when an object is grabbed the value changes
+                sensors[dir].SetSensorValue(0);
             }
             else
             {
-                float remainingTime = Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime);
+                float remainingTime = Mathf.Max(0, EnvironmentManager.suggestedIterationDuration - elapsedTime);
                 await MoveBack(agStartPos, remainingTime);
                 Debug.LogWarning($"Ag:{id} Failed to grab object, it was deactivated during grab attempt");
             }
@@ -261,7 +267,7 @@ public class Agent : MonoBehaviour
 
             if (!targetStack.TryLockForDropAsync())
             {
-                Debug.LogWarning($"Ag:{id} Stack is currently being used by another agent");
+                Debug.LogError($"Ag:{id} Stack is currently being used by another agent");
                 return;
             }
 
@@ -288,20 +294,26 @@ public class Agent : MonoBehaviour
                 if (dropSuccessful)
                 {
                     hasObject = false;
-                    grabbedObject.ObjDrop(targetStack);
+                    grabbedObject.ObjDrop();
                     grabbedObject = null;
+
+                    await Task.Yield(); // Wait for next frame
+                    foreach (var sensor in sensors.Values)
+                    {
+                        sensor.UpdataDisplayValue();
+                    }
                 }
                 else
                 {
                     grabbedObject.isMoving = false;
-                    Debug.LogWarning($"Ag:{id} Failed to drop object into the stack!");
-                    await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - timeToMove));
+                    Debug.LogError($"Ag:{id} Failed to drop object into the stack!");
+                    await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.suggestedIterationDuration - timeToMove));
                 }
             }
             catch (Exception e)
             {
                 Debug.LogError($"Ag:{id} Error during drop: {e.Message}");
-                await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime));
+                await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.suggestedIterationDuration - elapsedTime));
             }
             finally
             {
@@ -405,7 +417,11 @@ public class Agent : MonoBehaviour
 
     public void UpdateSensorValue(char direction, int value)
     {
-        cols[direction] = value;
+        lock (_lock)
+        {
+            _sensorValues[direction] = value;
+            cols[direction] = value;
+        }
     }
 
     private void UpdateSensorPositions()
@@ -419,15 +435,10 @@ public class Agent : MonoBehaviour
 
     public Task<Dictionary<char, int>> GetSensorData()
     {
-        // Dictionary<char, int> newCols = new Dictionary<char, int>();
-        // foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
-        // {
-        //     char direction = sensor.Key;
-        //     SensorTrigger trigger = sensor.Value;
-        //     newCols[direction] = trigger.GetSensorValue();
-        // }
-
-        return Task.FromResult(cols);
+        lock (_lock)
+        {
+            return Task.FromResult(new Dictionary<char, int>(_sensorValues));
+        }
     }
 
     private void UpdateContactSensorPosition()
@@ -451,15 +462,6 @@ public class Agent : MonoBehaviour
 
     // Sensor Setup
     // This setups to what the colliders will be able to collide with
-    private void SetupCollisionMatrix()
-    {
-        // Sensors only interact with Agents, Objects, and Obstacles
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Tiles"), true);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Contact"), true);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Obstacles"), false);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Stacks"), false);
-    }
 
     private void GenerateSensors()
     {
@@ -487,7 +489,6 @@ public class Agent : MonoBehaviour
         contactSensor = GenerateContactSensor("ConSensor");
         contactSensor.transform.parent = contactSensorWrapper.transform;
 
-        Utils.SetLayerRecursivelyByName(contactSensorWrapper, "Contact");
     }
 
     private SensorTrigger GenerateSensor(string name, Vector2Int direction)
@@ -499,8 +500,8 @@ public class Agent : MonoBehaviour
 
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
-        collider.radius = (Enviroment.tileSize / 2) - 0.2f;
-        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 1f) + new Vector3(0, 0.5f, 0);
+        collider.radius = (Enviroment.tileSize / 2) - 0.5f;
+        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 0.8f) + new Vector3(0, 0.7f, 0);
 
         SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
         trigger.parentAgent = this;
@@ -515,6 +516,20 @@ public class Agent : MonoBehaviour
         visualizer.transform.GetComponent<Renderer>().material = sensorMaterial;
         visualizer.SetActive(showColliders);
 
+        // Add TextMesh for number display
+        GameObject textObject = new GameObject("NumberDisplay");
+        textObject.transform.SetParent(sensor.transform);
+        textObject.transform.localPosition = collider.center + Vector3.up * collider.radius;
+        TextMesh textMesh = textObject.AddComponent<TextMesh>();
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.fontSize = 14;
+        textMesh.color = Color.black;
+        textMesh.text = "0"; // Default value
+
+        // Set the TextMesh reference in the SensorTrigger
+        trigger.SetTextMesh(textMesh);
+
         return trigger;
     }
 
@@ -522,7 +537,7 @@ public class Agent : MonoBehaviour
     {
         GameObject sensor = new GameObject(name);
         sensor.transform.SetParent(transform);
-        sensor.layer = LayerMask.NameToLayer("Obstacles");
+        sensor.layer = LayerMask.NameToLayer("Contact");
 
         BoxCollider collider = sensor.AddComponent<BoxCollider>();
         collider.isTrigger = true;
