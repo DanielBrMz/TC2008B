@@ -76,15 +76,15 @@ public class EnvironmentManager : MonoBehaviour
     }
     
     List<string> actions = new List<string>{
-        "GF",
-        "GF",
-        "GF",
-        "DF",
-        "DF",
-        "DF",
+        "GB",
         "MF",
-        "MF",
-        "MF"
+        "DF",
+        "GL",
+        "MR",
+        "DF",
+        "GR",
+        "ML",
+        "DF",
     };
 
     private async Task<string> GetActionFromServer(int agentId)

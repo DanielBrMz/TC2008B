@@ -170,21 +170,30 @@ public class Enviroment : MonoBehaviour
             if (currentAgentId < nAgents)
             {
                 // GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
-                GameObject agObject = SpawnAgent(new Vector2Int(5,0), currentAgentId);
+                GameObject agObject = SpawnAgent(new Vector2Int(5, 1), currentAgentId);
                 agObject.transform.parent = agentsWrapper.transform;
                 Agent newAgent = agObject.GetComponent<Agent>();
                 agents.Add(newAgent);
                 currentAgentId++;
             }
-            else if (currentObjectId < nItems)
-            {
-                // GameObject newObject = SpawnObject(vectorPos, currentObjectId);
-                GameObject newObject = SpawnObject(new Vector2Int(5,1), currentObjectId);
-                newObject.transform.parent = itemsWrapper.transform;
-                items.Add(newObject);
-                currentObjectId++;
-            }
+            // else if (currentObjectId < nItems)
+            // {
+            //     // GameObject newObject = SpawnObject(vectorPos, currentObjectId);
+            //     GameObject newObject = SpawnObject(new Vector2Int(5, 0), currentObjectId);
+
+            //     newObject.transform.parent = itemsWrapper.transform;
+            //     items.Add(newObject);
+            //     currentObjectId++;
+            // }
         }
+
+        GameObject newObject = SpawnObject(new Vector2Int(5, 0), currentObjectId);
+        GameObject newObject1 = SpawnObject(new Vector2Int(6, 1), currentObjectId);
+        GameObject newObject2 = SpawnObject(new Vector2Int(4, 1), currentObjectId);
+
+        items.Add(newObject);
+        items.Add(newObject1);
+        items.Add(newObject2);
 
         // Manually add stacks by position here
         int i = 0;

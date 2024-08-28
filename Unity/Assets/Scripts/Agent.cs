@@ -264,7 +264,7 @@ public class Agent : MonoBehaviour
         }
 
         Vector3 objStartPos = grabbedObject.transform.position;
-        Vector3 targetPos = targetStack.GetNextItemPosition();
+        Vector3 targetPos = targetStack.GetNextItemPosition(targetStack.nItems + 1);
         float elapsedTime = 0f;
         bool dropSuccessful = false;
 

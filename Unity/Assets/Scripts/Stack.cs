@@ -7,19 +7,19 @@ using System.Threading.Tasks;
 public class Stack : MonoBehaviour
 {
     [Header("Stack values")]
+    [SerializeField] private float verticalItemOffset = 2f; // Adjust this value as needed
     public int id;
     public Vector2Int pos;
     public int nItems = 0;
-    public List<Object> items;
     public int maxItems = 5;  // Set this to your desired maximum stack size 
 
     [Header("Engine values")]
     public Enviroment parentEnv;
     
-
-    private float verticalItemOffset = 0.2f; // Adjust this value as needed
     private float itemScale = 0.8f; // Adjust this value as needed
     private bool isLocked = false;
+    private List<Object> items;
+
 
     private void Awake()
     {
@@ -28,9 +28,13 @@ public class Stack : MonoBehaviour
         items = new List<Object>();
     }
 
-    public Vector3 GetNextItemPosition()
+    public Vector3 GetNextItemPosition(int nItems)
     {
-        return transform.position + Vector3.up * (nItems * verticalItemOffset);
+        if(nItems == 1)
+        {
+            return transform.position;
+        }
+        return transform.position + Vector3.up * ((nItems - 1) * verticalItemOffset);
     }
 
     public bool TryLockForDropAsync()
@@ -60,7 +64,7 @@ public class Stack : MonoBehaviour
         item.transform.localScale *= itemScale;
 
         // Position the item
-        item.transform.position = GetNextItemPosition();
+        item.transform.position = GetNextItemPosition(nItems);
 
         // Disable item's collider
         Collider itemCollider = item.GetComponent<Collider>();
