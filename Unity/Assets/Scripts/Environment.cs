@@ -157,7 +157,7 @@ public class Enviroment : MonoBehaviour
         GameObject stacksWrapper = new("Stacks");
 
         HashSet<Vector2Int> stackPositions = new HashSet<Vector2Int>{
-            new Vector2Int(5,5)
+            new Vector2Int(5,2)
         };
 
         Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems, stackPositions);
@@ -169,8 +169,8 @@ public class Enviroment : MonoBehaviour
         {
             if (currentAgentId < nAgents)
             {
-                GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
-                // GameObject agObject = SpawnAgent(new Vector2Int(5,0), currentAgentId);
+                // GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
+                GameObject agObject = SpawnAgent(new Vector2Int(5,0), currentAgentId);
                 agObject.transform.parent = agentsWrapper.transform;
                 Agent newAgent = agObject.GetComponent<Agent>();
                 agents.Add(newAgent);
@@ -178,8 +178,8 @@ public class Enviroment : MonoBehaviour
             }
             else if (currentObjectId < nItems)
             {
-                GameObject newObject = SpawnObject(vectorPos, currentObjectId);
-                // GameObject newObject = SpawnObject(new Vector2Int(5,1), currentObjectId);
+                // GameObject newObject = SpawnObject(vectorPos, currentObjectId);
+                GameObject newObject = SpawnObject(new Vector2Int(5,1), currentObjectId);
                 newObject.transform.parent = itemsWrapper.transform;
                 items.Add(newObject);
                 currentObjectId++;

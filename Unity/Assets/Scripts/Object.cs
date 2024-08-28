@@ -2,10 +2,12 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Unity.VisualScripting;
+using Unity.VisualScripting.Antlr3.Runtime.Collections;
 using UnityEngine;
 
 public class Object : MonoBehaviour
-{   
+{
     [Header("Parameters")]
     public float size = 2f;
 
@@ -14,8 +16,9 @@ public class Object : MonoBehaviour
 
     private static bool colliderVisible = false;
 
-    private bool isGrabbed = false;
-    private Transform grabber;
+    public bool isGrabbed = false;
+    public bool isMoving = false;
+    public Transform grabber;
 
     private SemaphoreSlim grabLock = new SemaphoreSlim(1, 1);
     private bool isBeingGrabbed = false;
@@ -27,7 +30,8 @@ public class Object : MonoBehaviour
         SetRandomModel();
     }
 
-    private void Update() {
+    private void Update()
+    {
         UpdateObjectColliderVisibility();
     }
 
@@ -71,12 +75,12 @@ public class Object : MonoBehaviour
     }
 
     // This function is temporal while I figure stacks out
-    public void ObjDrop()
-    {{
+    public void ObjDrop(Stack newStack)
+    {
         isGrabbed = false;
         grabber = null;
-        GetComponent<Collider>().enabled = true;
-    }}
+        isMoving = false;
+    }
 
     public void SetRandomModel()
     {
@@ -89,10 +93,11 @@ public class Object : MonoBehaviour
         }
     }
 
-    private void LateUpdate() {
-        if (isGrabbed && grabber != null)
+    private void LateUpdate()
+    {
+        if (isGrabbed && grabber != null && !isMoving)
         {
-            transform.position = grabber.position + Vector3.up * (size + 1f) ;
+            transform.position = grabber.position + Vector3.up * (size + 1f);
         }
     }
 }

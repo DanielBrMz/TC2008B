@@ -315,7 +315,7 @@ PrefabInstance:
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: stackPrefab
       value: 
-      objectReference: {fileID: 2519449688884084179, guid: 35b0b9b055d28753fb6eb95fec99eed1, type: 3}
+      objectReference: {fileID: 3072450579512987806, guid: 35b0b9b055d28753fb6eb95fec99eed1, type: 3}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: objectPrefab
       value: 

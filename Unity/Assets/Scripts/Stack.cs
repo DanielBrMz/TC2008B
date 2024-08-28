@@ -11,56 +11,68 @@ public class Stack : MonoBehaviour
     public Vector2Int pos;
     public int nItems = 0;
     public List<Object> items;
-    public int maxItems = 5; // Set this to your desired maximum stack size
+    public int maxItems = 5;  // Set this to your desired maximum stack size 
 
     [Header("Engine values")]
     public Enviroment parentEnv;
     
+
     private float verticalItemOffset = 0.2f; // Adjust this value as needed
     private float itemScale = 0.8f; // Adjust this value as needed
-
-    private SemaphoreSlim dropLock = new SemaphoreSlim(1, 1);
+    private bool isLocked = false;
 
     private void Awake()
     {
-        transform.localScale = new Vector3(Enviroment.tileSize - 0.5f, Enviroment.tileSize / 2, Enviroment.tileSize - 0.5f);
+        transform.localScale = new Vector3(Enviroment.tileSize - 0.5f, Enviroment.tileSize/3*2, Enviroment.tileSize - 0.5f);
+        transform.position += new Vector3(0f,Enviroment.tileSize/3,0f);
+        items = new List<Object>();
     }
 
-    public async Task<bool> TryAddItemAsync(Object item)
+    public Vector3 GetNextItemPosition()
     {
-        await dropLock.WaitAsync();
-        try
+        return transform.position + Vector3.up * (nItems * verticalItemOffset);
+    }
+
+    public bool TryLockForDropAsync()
+    {
+        if (isLocked || nItems >= maxItems)
+            return false;
+
+        isLocked = true;
+        return true;
+    }
+
+    public void UnlockForDrop()
+    {
+        isLocked = false;
+    }
+
+
+    public bool TryAddItemAsync(Object item)
+    {
+        if (nItems >= maxItems)
+            return false;
+
+        items.Add(item);
+        nItems++;
+
+        // Scale down the item
+        item.transform.localScale *= itemScale;
+
+        // Position the item
+        item.transform.position = GetNextItemPosition();
+
+        // Disable item's collider
+        Collider itemCollider = item.GetComponent<Collider>();
+        if (itemCollider != null)
+            itemCollider.enabled = false;
+
+        // Check if stack is full after adding item
+        if (nItems >= maxItems)
         {
-            if (nItems >= maxItems)
-            {
-                return false;
-            }
-
-            nItems++;
-            items.Add(item);
-            
-            // Scale down and position the item
-            item.transform.localScale *= itemScale;
-            item.transform.position = transform.position + Vector3.up * (nItems * verticalItemOffset);
-            
-            // Disable item's collider
-            Collider itemCollider = item.GetComponent<Collider>();
-            if (itemCollider != null)
-            {
-                itemCollider.enabled = false;
-            }
-
-            // Change layer if stack is full
-            if (nItems == maxItems)
-            {
-                gameObject.layer = LayerMask.NameToLayer("Obstacles");
-            }
-
-            return true;
+            gameObject.layer = LayerMask.NameToLayer("Obstacle");
         }
-        finally
-        {
-            dropLock.Release();
-        }
+
+        return true;
     }
 }
