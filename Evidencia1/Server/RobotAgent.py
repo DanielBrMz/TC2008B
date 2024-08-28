@@ -71,8 +71,9 @@ class RobotAgent(ap.Agent):
         self.onto_robot = onto.Robot()
         self.onto_robot.has_position = [onto.Position()]
         self.movements = 0
+        self.perception_data = {}
+        self.is_holding_box = False  # New attribute to track if the robot is holding a box
         self.rules = [
-            ({"perception": {"F": 0, "B": 0, "L": 0, "R": 0}}, "move_random"),
             ({"perception": {"F": 1}, "is_holding": False}, "grab_F"),
             ({"perception": {"B": 1}, "is_holding": False}, "grab_B"),
             ({"perception": {"L": 1}, "is_holding": False}, "grab_L"),
@@ -87,46 +88,76 @@ class RobotAgent(ap.Agent):
         print(f"Updating state with perception: {perception_json}")
         perception = json.loads(perception_json)
         self.onto_robot.id = perception["id"]
-        for direction, value in perception["position"].items():
-            direction_class = onto[direction]
-            if direction_class is not None:
-                setattr(self.onto_robot, f"has_perception_{direction}", direction_class(value))
-            else:
-                print(f"Warning: Direction '{direction}' not found in ontology")
-        self.onto_robot.is_holding = [onto.Object()] if self.onto_robot.is_holding else []
-        print(f"State updated. Robot ID: {self.onto_robot.id}, Holding: {bool(self.onto_robot.is_holding)}")
+        self.perception_data = perception["position"]
+        print(f"State updated. Robot ID: {self.onto_robot.id}, Holding: {self.is_holding_box}, Perception: {self.perception_data}")
 
-
-    def check_rule(self, rule, state):
+    def check_rule(self, rule):
         for key, value in rule.items():
             if key == "perception":
                 for direction, expected in value.items():
-                    actual = getattr(self.onto_robot, f"has_perception_{direction}", None)
-                    if actual is None or actual.value != expected:
+                    if self.perception_data.get(direction) != expected:
                         return False
             elif key == "is_holding":
-                if bool(self.onto_robot.is_holding) != value:
+                if self.is_holding_box != value:
                     return False
         return True
 
-    def perception(self):
+    def get_box_directions(self):
+        return [direction for direction, value in self.perception_data.items() if value == 1]
+
+    def get_stack_directions(self):
+        return [direction for direction, value in self.perception_data.items() if value == 3]
+
+    def get_free_directions(self):
+        return [direction for direction, value in self.perception_data.items() if value == 0]
+
+    def perceive_and_act(self):
         print("Checking rules for perception")
-        for rule, action in self.rules:
-            if self.check_rule(rule, self.onto_robot):
-                print(f"Rule matched: {rule}, Action: {action}")
-                return action
-        print("No rule matched, choosing random move")
-        return f"move_{random.choice(['F', 'B', 'L', 'R'])}"
+        
+        if self.is_holding_box:
+            stack_directions = self.get_stack_directions()
+            if stack_directions:
+                chosen_direction = random.choice(stack_directions)
+                print(f"Found stack. Dropping box in direction: {chosen_direction}")
+                return f"drop_{chosen_direction}"
+            else:
+                free_directions = self.get_free_directions()
+                if free_directions:
+                    chosen_direction = random.choice(free_directions)
+                    print(f"Holding box, moving to free space: {chosen_direction}")
+                    return f"move_{chosen_direction}"
+                else:
+                    print("No free space, staying put")
+                    return "wait"
+        else:
+            box_directions = self.get_box_directions()
+            if box_directions:
+                chosen_direction = random.choice(box_directions)
+                print(f"Found box. Grabbing from direction: {chosen_direction}")
+                return f"grab_{chosen_direction}"
+
+        free_directions = self.get_free_directions()
+        if free_directions:
+            chosen_direction = random.choice(free_directions)
+            print(f"Moving to free space: {chosen_direction}")
+            return f"move_{chosen_direction}"
+        else:
+            print("No free space, staying put")
+            return "wait"
 
     def act(self, action):
         print(f"Acting: {action}")
         if action.startswith("move_"):
             self.movements += 1
+        elif action.startswith("grab_"):
+            self.is_holding_box = True
+        elif action.startswith("drop_"):
+            self.is_holding_box = False
         return action
 
     def reason(self):
         print("Reasoning about action")
-        action = self.perception()
+        action = self.perceive_and_act()
         return json.dumps({"action": action})
 
     def step(self, perception_json):

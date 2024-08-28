@@ -36,7 +36,7 @@ def robot_action():
             app.logger.error(f"Robot with id {robot_id} not found.")
             return jsonify({"error": "Robot not found"}), 404
 
-        app.logger.debug(f"Found robot: {robot.onto_robot.id}, Position: {robot.onto_robot.has_position}")
+        app.logger.debug(f"Found robot: {robot.onto_robot.id}, Position: {robot.onto_robot.has_position}, Holding: {robot.is_holding_box}")
 
         perception_json = json.dumps({
             "id": robot_id,
@@ -48,6 +48,16 @@ def robot_action():
         try:
             action = robot.step(perception_json)
             app.logger.debug(f"Action taken by robot: {action}")
+            app.logger.debug(f"Robot state after action: ID: {robot.onto_robot.id}, Holding: {robot.is_holding_box}, Perception: {robot.perception_data}")
+            
+            # Log the decision-making process
+            box_directions = robot.get_box_directions()
+            stack_directions = robot.get_stack_directions()
+            free_directions = robot.get_free_directions()
+            app.logger.debug(f"Boxes found in directions: {box_directions}")
+            app.logger.debug(f"Stacks found in directions: {stack_directions}")
+            app.logger.debug(f"Free spaces in directions: {free_directions}")
+            
         except Exception as e:
             app.logger.error(f"Error in robot.step(): {str(e)}")
             app.logger.error(traceback.format_exc())
