@@ -3,19 +3,21 @@ using System.Collections.Generic;
 using UnityEditor.SearchService;
 using System.Linq;
 using Unity.VisualScripting;
+using UnityEngine.UIElements;
 
 public class Enviroment : MonoBehaviour
 {
     [Header("Simulation Parameters")]
     public int nAgents = 5;
     public int nItems = 20;
+    public int nStacks = 6;
     public int obstacles = 0;
 
 
     [Header("Object Parameters")]
-    public GameObject AgentPrefab;
+    public GameObject agentPrefab;
     public GameObject objectPrefab;
-
+    public GameObject stackPrefab;
 
     [Header("Eviroment Parameters")]
     [SerializeField] private float tileDimensions = 3f;
@@ -51,7 +53,8 @@ public class Enviroment : MonoBehaviour
     public static float tileSize;
     public static float yOffset;
 
-    private GameObject[] items;
+    private List<GameObject> items;
+    private List<GameObject> stacks;
 
     public static List<Agent> agents;
 
@@ -81,10 +84,12 @@ public class Enviroment : MonoBehaviour
     }
 
 
-    private Vector2Int[] GenerateUniqueRandomPositions(int nPos)
+    private Vector2Int[] GenerateUniqueRandomPositions(int nPos, HashSet<Vector2Int> occupiedPos)
     {
         Vector2Int[] randomPositions = new Vector2Int[nPos];
         HashSet<Vector2Int> usedPositions = new HashSet<Vector2Int>(nPos);
+        usedPositions.UnionWith(occupiedPos);
+
         int i = 0;
         while (i < nPos)
         {
@@ -146,20 +151,27 @@ public class Enviroment : MonoBehaviour
     private void InitializeAllEntities()
     {
         agents = new List<Agent>(nAgents);
-        items = new GameObject[nItems];
+        items = new List<GameObject>(nItems);
+        stacks = new List<GameObject>(nStacks);
         GameObject agentsWrapper = new("Agents");
         GameObject itemsWrapper = new("Objects");
-        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems);
+        GameObject stacksWrapper = new("Stacks");
+
+        HashSet<Vector2Int> stackPositions = new HashSet<Vector2Int>{
+            new Vector2Int(5,2)
+        };
+
+        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems, stackPositions);
 
         int currentAgentId = 0;
         int currentObjectId = 0;
 
-        foreach (Vector2Int vectorPos in randomPositions)
+        foreach (Vector2Int randomPos in randomPositions)
         {
             if (currentAgentId < nAgents)
             {
-                GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
-                // GameObject agObject = SpawnAgent(new Vector2Int(5,0), currentAgentId);
+                // GameObject agObject = SpawnAgent(vectorPos, currentAgentId);
+                GameObject agObject = SpawnAgent(randomPos, currentAgentId);
                 agObject.transform.parent = agentsWrapper.transform;
                 Agent newAgent = agObject.GetComponent<Agent>();
                 agents.Add(newAgent);
@@ -167,22 +179,55 @@ public class Enviroment : MonoBehaviour
             }
             else if (currentObjectId < nItems)
             {
-                GameObject newObject = SpawnObject(vectorPos, currentObjectId);
-                // GameObject newObject = SpawnObject(new Vector2Int(5,1), currentObjectId);
+                // GameObject newObject = SpawnObject(vectorPos, currentObjectId);
+                GameObject newObject = SpawnObject(randomPos, currentObjectId);
+
                 newObject.transform.parent = itemsWrapper.transform;
-                items[currentObjectId] = newObject;
+                items.Add(newObject);
                 currentObjectId++;
             }
         }
 
+        // Manually add stacks by position here
+        int i = 0;
+        foreach (Vector2Int pos in stackPositions)
+        {
+            GameObject stackObject = SpawnStack(pos, i);
+            stacks.Add(stackObject);
+
+            i++;
+        }
+
+        foreach (GameObject stack in stacks)
+        {
+            stack.transform.parent = stacksWrapper.transform;
+        }
+
         Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
         Utils.SetLayerRecursivelyByName(itemsWrapper, "Objects");
+        Utils.SetLayerRecursivelyByName(stacksWrapper, "Stacks");
+    }
+
+    private GameObject SpawnStack(Vector2Int pos, int id)
+    {
+        Vector3 position = CalculateObjectPosition(pos);
+        GameObject stackObject = Instantiate(stackPrefab, position, Quaternion.identity);
+
+        if (stackObject.TryGetComponent<Stack>(out var stack))
+        {
+            stack.id = id;
+            stack.pos = pos;
+            stack.name = "Stack " + id;
+            stack.parentEnv = this;
+        }
+
+        return stackObject;
     }
 
     private GameObject SpawnAgent(Vector2Int pos, int id)
     {
         Vector3 position = CalculateObjectPosition(pos);
-        GameObject agentObject = Instantiate(AgentPrefab, position, Quaternion.identity);
+        GameObject agentObject = Instantiate(agentPrefab, position, Quaternion.identity);
 
         if (agentObject.TryGetComponent<Agent>(out var agent))
         {

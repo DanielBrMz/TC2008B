@@ -91,9 +91,9 @@ public class Agent : MonoBehaviour
             case 'G':
                 await Grab(action[1], EnvironmentManager.iterationDuration);
                 break;
-            // case 'D':
-            //     Drop(action[1], EnvironmentManager.iterationDuration);
-            //     break;
+            case 'D':
+                await Drop(action[1], EnvironmentManager.iterationDuration);
+                break;
             default:
                 Debug.LogError($"Unknown action: {action}");
                 actionCompletionSource.SetResult(true);
@@ -240,6 +240,89 @@ public class Agent : MonoBehaviour
         transform.position = startPos;
     }
 
+    public async Task Drop(char dir, float timeToMove)
+    {
+        Debug.Log($"Ag:{id} trying to drop item {dir}");
+        if (!hasObject || grabbedObject == null)
+        {
+            Debug.LogWarning($"Ag:{id} No object to drop");
+            return;
+        }
+
+        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
+        Stack targetStack = FindStackInCollider(directionCollider);
+        if (targetStack == null)
+        {
+            Debug.LogError($"Ag:{id} No stack to drop into in direction {dir}");
+            return;
+        }
+
+        if (!targetStack.TryLockForDropAsync())
+        {
+            Debug.LogWarning($"Ag:{id} Stack is currently being used by another agent");
+            return;
+        }
+
+        Vector3 objStartPos = grabbedObject.transform.position;
+        Vector3 targetPos = targetStack.GetNextItemPosition(targetStack.nItems + 1);
+        float elapsedTime = 0f;
+        bool dropSuccessful = false;
+
+        try
+        {
+            grabbedObject.isMoving = true;
+            while (elapsedTime < timeToMove)
+            {
+                float t = elapsedTime / timeToMove;
+                grabbedObject.transform.position = Vector3.Lerp(objStartPos, targetPos, t);
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+            }
+
+            // Ensure the object is at the final position
+            grabbedObject.transform.position = targetPos;
+
+            dropSuccessful = targetStack.TryAddItemAsync(grabbedObject);
+
+            if (dropSuccessful)
+            {
+                hasObject = false;
+                grabbedObject.ObjDrop(targetStack);
+                grabbedObject = null;
+            }
+            else
+            {
+                grabbedObject.isMoving = false;
+                Debug.LogWarning($"Ag:{id} Failed to drop object into the stack!");
+                await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - timeToMove));
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Ag:{id} Error during drop: {e.Message}");
+            await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime));
+        }
+        finally
+        {
+            targetStack.UnlockForDrop();
+        }
+    }
+    private async Task MoveObjectBack(Vector3 startPos, float duration)
+    {
+        float elapsedTime = 0f;
+        Vector3 currentPos = grabbedObject.transform.position;
+
+        while (elapsedTime < duration)
+        {
+            float t = elapsedTime / duration;
+            grabbedObject.transform.position = Vector3.Lerp(currentPos, startPos, t);
+            elapsedTime += Time.deltaTime;
+            await Task.Yield();
+        }
+
+        grabbedObject.transform.position = startPos;
+    }
+
 
     private Object FindObjectInCollider(Collider directionCollider)
     {
@@ -251,6 +334,21 @@ public class Agent : MonoBehaviour
             if (obj != null)
             {
                 return obj;
+            }
+        }
+
+        return null;
+    }
+
+    private Stack FindStackInCollider(Collider directionCollider)
+    {
+        Collider[] colliders = Physics.OverlapBox(directionCollider.bounds.center, directionCollider.bounds.extents, directionCollider.transform.rotation, LayerMask.GetMask("Stacks"));
+
+        foreach (Collider collider in colliders)
+        {
+            if (collider.TryGetComponent<Stack>(out var stck))
+            {
+                return stck;
             }
         }
 
