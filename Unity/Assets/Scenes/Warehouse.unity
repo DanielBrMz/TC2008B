@@ -286,7 +286,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nItems
-      value: 20
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nTiles
@@ -294,7 +294,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nAgents
-      value: 5
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: nStacks
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: wallHeight
@@ -304,6 +308,14 @@ PrefabInstance:
       propertyPath: AgentPrefab
       value: 
       objectReference: {fileID: 6395324215237540279, guid: 635724beb6cc0e00e8aa743563626a85, type: 3}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: agentPrefab
+      value: 
+      objectReference: {fileID: 6395324215237540279, guid: 635724beb6cc0e00e8aa743563626a85, type: 3}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: stackPrefab
+      value: 
+      objectReference: {fileID: 2519449688884084179, guid: 35b0b9b055d28753fb6eb95fec99eed1, type: 3}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: objectPrefab
       value: 

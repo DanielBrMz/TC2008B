@@ -240,6 +240,73 @@ public class Agent : MonoBehaviour
         transform.position = startPos;
     }
 
+    public async Task Drop(char dir, float timeToMove)
+    {
+        if (!hasObject || grabbedObject == null)
+        {
+            Debug.LogWarning($"Ag:{id} No object to drop");
+            return;
+        }
+
+        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
+        Stack targetStack = FindStackInCollider(directionCollider);
+
+        if (targetStack == null)
+        {
+            Debug.LogError($"Ag:{id} No stack to drop into in direction {dir}");
+            return;
+        }
+
+        Vector3 objStartPos = grabbedObject.transform.position;
+        Vector3 agStartPos = transform.position;
+        Vector2Int newPos = pos + Name2Direction(dir);
+        Vector3 targetPosition = Enviroment.CalculateObjectPosition(newPos);
+
+        float elapsedTime = 0f;
+        bool dropSuccessful = false;
+
+        try
+        {
+            while (elapsedTime < EnvironmentManager.iterationDuration)
+            {
+                float remainingTime = EnvironmentManager.iterationDuration - elapsedTime;
+                float t = Mathf.Clamp01(elapsedTime / timeToMove);
+
+                grabbedObject.transform.position = Vector3.Lerp(objStartPos, targetStack.transform.position, t);
+                transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
+
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+
+                if (elapsedTime >= timeToMove)
+                {
+                    dropSuccessful = await targetStack.TryAddItemAsync(grabbedObject);
+                    break;
+                }
+            }
+
+            if (dropSuccessful)
+            {
+                hasObject = false;
+                grabbedObject = null;
+                pos = newPos;
+            }
+            else
+            {
+                float remainingTime = Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime);
+                await MoveBack(agStartPos, remainingTime);
+                grabbedObject.transform.position = objStartPos;
+                Debug.LogWarning($"Ag:{id} Failed to drop object into the stack");
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"Ag:{id} Error during drop: {e.Message}");
+            await MoveBack(agStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime));
+            grabbedObject.transform.position = objStartPos;
+        }
+    }
+
 
     private Object FindObjectInCollider(Collider directionCollider)
     {
@@ -251,6 +318,22 @@ public class Agent : MonoBehaviour
             if (obj != null)
             {
                 return obj;
+            }
+        }
+
+        return null;
+    }
+
+    private Stack FindStackInCollider(Collider directionCollider)
+    {
+        Collider[] colliders = Physics.OverlapBox(directionCollider.bounds.center, directionCollider.bounds.extents, directionCollider.transform.rotation, LayerMask.GetMask("Stacks"));
+
+        foreach (Collider collider in colliders)
+        {
+            Stack stck = collider.GetComponent<Stack>();
+            if (stck != null)
+            {
+                return stck;
             }
         }
 
