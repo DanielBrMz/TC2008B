@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Unity.VisualScripting;
@@ -34,19 +35,18 @@ public class Agent : MonoBehaviour
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
     private GameObject contactSensor;
-    private Dictionary<char, SensorTrigger> sensors;
+    public Dictionary<char, SensorTrigger> sensors;
     public static bool showColliders = false;
 
     // Enviroment
     private Vector3 targetPosition;
-    private Coroutine moveCorutine;
-    private Coroutine grabObjCorutine;
+
+    private Dictionary<char, int> _sensorValues = new Dictionary<char, int>();
+    private object _lock = new object();
 
 
     private void Awake()
     {
-
-        SetupCollisionMatrix();
         GenerateSensors();
     }
 
@@ -79,25 +79,39 @@ public class Agent : MonoBehaviour
         }
     }
 
-    public async Task ExecuteAction(string action)
+    public async Task ExecuteAction(ActionSintax action)
     {
         actionCompletionSource = new TaskCompletionSource<bool>();
-
-        switch (action[0])
+        try
         {
-            case 'M':
-                await Move(action[1], EnvironmentManager.iterationDuration);
-                break;
-            case 'G':
-                await Grab(action[1], EnvironmentManager.iterationDuration);
-                break;
-            case 'D':
-                await Drop(action[1], EnvironmentManager.iterationDuration);
-                break;
-            default:
-                Debug.LogError($"Unknown action: {action}");
-                actionCompletionSource.SetResult(true);
-                break;
+            switch (action.action)
+            {
+                case "M":
+                    // Debug.Log($"Ag:{id} is schomving!");
+                    await Move(char.Parse(action.direction), EnvironmentManager.suggestedIterationDuration);
+                    break;
+                case "G":
+                    // Debug.Log($"Ag:{id} is grabbing!");
+                    await Grab(char.Parse(action.direction), EnvironmentManager.suggestedIterationDuration);
+                    break;
+                case "D":
+                    // Debug.Log($"Ag:{id} is dropping!");
+                    await Drop(char.Parse(action.direction), EnvironmentManager.suggestedIterationDuration);
+                    break;
+                case "W":
+                    Debug.Log($"Ag:{id} waited instead of doing anything at all");
+                    ActionCompleted();
+                    break;
+                default:
+                    Debug.LogError($"Unknown action: {action.action}");
+                    ActionCompleted();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Error executing action: {ex}");
+            ActionCompleted();
         }
 
         await actionCompletionSource.Task;
@@ -105,6 +119,7 @@ public class Agent : MonoBehaviour
 
     public void ActionCompleted()
     {
+        // Debug.Log($"Ag:{id} finished his action!");
         actionCompletionSource?.TrySetResult(true);
     }
 
@@ -117,6 +132,7 @@ public class Agent : MonoBehaviour
         if (value != 0)
         {
             Debug.LogWarning($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
+            ActionCompleted();
             return;
         }
 
@@ -128,7 +144,7 @@ public class Agent : MonoBehaviour
 
         Vector3 startPos = transform.position;
         float elapsedTime = 0f;
-        while (elapsedTime < EnvironmentManager.iterationDuration)
+        while (elapsedTime < EnvironmentManager.suggestedIterationDuration)
         {
             elapsedTime += Time.deltaTime;
             float t = Mathf.Clamp01(elapsedTime / timeToMove);
@@ -142,47 +158,45 @@ public class Agent : MonoBehaviour
             await Task.Yield();
         }
         transform.position = targetPosition;
+        ActionCompleted();
     }
 
     public async Task Grab(char dir, float timeToMove)
     {
-        if (hasObject)
-        {
-            Debug.LogWarning($"Ag:{id} Already holding an object");
-            return;
-        }
-
-        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
-        Object objectToGrab = FindObjectInCollider(directionCollider);
-
-        if (objectToGrab == null)
-        {
-            Debug.LogError($"Ag:{id} No object to grab in direction {dir}");
-            return;
-        }
-
-        if (!await objectToGrab.TryGrab())
-        {
-            Debug.LogWarning($"Ag:{id} Failed to grab object, it was already being grabbed");
-            return;
-        }
-
-        Vector3 objStartPos = objectToGrab.transform.position;
-        Vector3 agStartPos = transform.position;
-        Vector2Int newPos = pos + Name2Direction(dir);
-        Vector3 targetPosition = Enviroment.CalculateObjectPosition(newPos);
-        Vector3 aboveAgentPos = targetPosition + Vector3.up * grabHeight;
-
-        float elapsedTime = 0f;
-        bool grabSuccessful = true;
-
         try
         {
-            while (elapsedTime < EnvironmentManager.iterationDuration)
+            if (hasObject)
             {
-                float remainingTime = EnvironmentManager.iterationDuration - elapsedTime;
-                float t = Mathf.Clamp01(elapsedTime / timeToMove);
+                Debug.LogError($"Ag:{id} Already holding an object");
+                return;
+            }
 
+            Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
+            Object objectToGrab = FindObjectInCollider(directionCollider);
+            if (objectToGrab == null)
+            {
+                Debug.LogError($"Ag:{id} No object to grab in direction {dir}");
+                return;
+            }
+
+            if (!await objectToGrab.TryGrab())
+            {
+                Debug.Log($"Ag:{id} Failed to grab object, it was already being grabbed");
+                return;
+            }
+
+            Vector3 objStartPos = objectToGrab.transform.position;
+            Vector3 agStartPos = transform.position;
+            Vector2Int newPos = pos + Name2Direction(dir);
+            Vector3 targetPosition = Enviroment.CalculateObjectPosition(newPos);
+            Vector3 aboveAgentPos = targetPosition + Vector3.up * grabHeight;
+            float elapsedTime = 0f;
+            bool grabSuccessful = true;
+
+            while (elapsedTime < EnvironmentManager.suggestedIterationDuration)
+            {
+                float remainingTime = EnvironmentManager.suggestedIterationDuration - elapsedTime;
+                float t = Mathf.Clamp01(elapsedTime / timeToMove);
                 objectToGrab.transform.position = Vector3.Lerp(objStartPos, aboveAgentPos, t);
                 transform.position = Vector3.Lerp(agStartPos, targetPosition, t);
 
@@ -207,122 +221,185 @@ public class Agent : MonoBehaviour
                 grabbedObject = objectToGrab;
                 objectToGrab.ObjGrab(transform);
                 pos = newPos;
+
+                sensors[dir].ClearSensorValue();
+
+                // Force update all sensors
+                await Task.Yield(); // Wait for next frame
+                foreach (var sensor in sensors.Values)
+                {
+                    sensor.UpdataDisplayValue();
+                }
+
+                // Specifically set the sensor in the grab direction to 0
+                // if (sensors.TryGetValue(dir, out var grabSensor))
+                // {
+                //     grabSensor.SetSensorValue(0);
+                //     UpdateSensorValue(dir, 0);
+                // }
             }
             else
             {
-                float remainingTime = Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime);
+                float remainingTime = Mathf.Max(0, EnvironmentManager.suggestedIterationDuration - elapsedTime);
                 await MoveBack(agStartPos, remainingTime);
                 Debug.LogWarning($"Ag:{id} Failed to grab object, it was deactivated during grab attempt");
             }
-        }
-        finally
-        {
+
             if (!grabSuccessful)
             {
                 objectToGrab.CancelGrab();
             }
         }
-    }
-
-    private async Task MoveBack(Vector3 startPos, float duration)
-    {
-        float elapsedTime = 0f;
-        Vector3 currentPos = transform.position;
-
-        while (elapsedTime < duration)
+        catch (Exception ex)
         {
-            float t = elapsedTime / duration;
-            transform.position = Vector3.Lerp(currentPos, startPos, t);
-            elapsedTime += Time.deltaTime;
-            await Task.Yield();
+            Debug.LogError($"Ag:{id} Error during grab operation: {ex.Message}");
         }
-
-        transform.position = startPos;
+        finally
+        {
+            ActionCompleted();
+        }
     }
 
     public async Task Drop(char dir, float timeToMove)
     {
-        Debug.Log($"Ag:{id} trying to drop item {dir}");
-        if (!hasObject || grabbedObject == null)
-        {
-            Debug.LogWarning($"Ag:{id} No object to drop");
-            return;
-        }
-
-        Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
-        Stack targetStack = FindStackInCollider(directionCollider);
-        if (targetStack == null)
-        {
-            Debug.LogError($"Ag:{id} No stack to drop into in direction {dir}");
-            return;
-        }
-
-        if (!targetStack.TryLockForDropAsync())
-        {
-            Debug.LogWarning($"Ag:{id} Stack is currently being used by another agent");
-            return;
-        }
-
-        Vector3 objStartPos = grabbedObject.transform.position;
-        Vector3 targetPos = targetStack.GetNextItemPosition(targetStack.nItems + 1);
-        float elapsedTime = 0f;
-        bool dropSuccessful = false;
-
         try
         {
-            grabbedObject.isMoving = true;
-            while (elapsedTime < timeToMove)
+            Debug.Log($"Ag:{id} trying to drop item {dir}");
+            if (!hasObject || grabbedObject == null)
             {
-                float t = elapsedTime / timeToMove;
-                grabbedObject.transform.position = Vector3.Lerp(objStartPos, targetPos, t);
-                elapsedTime += Time.deltaTime;
-                await Task.Yield();
+                Debug.LogWarning($"Ag:{id} No object to drop");
+                return;
             }
 
-            // Ensure the object is at the final position
-            grabbedObject.transform.position = targetPos;
-
-            dropSuccessful = targetStack.TryAddItemAsync(grabbedObject);
-
-            if (dropSuccessful)
+            Collider directionCollider = sensors[dir].transform.GetComponent<Collider>();
+            Stack targetStack = FindStackInCollider(directionCollider);
+            if (targetStack == null)
             {
-                hasObject = false;
-                grabbedObject.ObjDrop(targetStack);
-                grabbedObject = null;
+                Debug.LogError($"Ag:{id} No stack to drop into in direction {dir}");
+                return;
             }
-            else
+
+            if (!targetStack.TryLockForDropAsync())
             {
-                grabbedObject.isMoving = false;
-                Debug.LogWarning($"Ag:{id} Failed to drop object into the stack!");
-                await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - timeToMove));
+                Debug.LogWarning($"Ag:{id} Stack is currently being used by another agent");
+                return;
+            }
+
+            Vector3 objStartPos = grabbedObject.transform.position;
+            Vector3 targetPos = targetStack.GetNextItemPosition(targetStack.nItems + 1);
+            float elapsedTime = 0f;
+            bool dropSuccessful = false;
+
+            try
+            {
+                grabbedObject.isMoving = true;
+                while (elapsedTime < timeToMove)
+                {
+                    float t = elapsedTime / timeToMove;
+                    grabbedObject.transform.position = Vector3.Lerp(objStartPos, targetPos, t);
+                    elapsedTime += Time.deltaTime;
+                    await Task.Yield();
+                }
+
+                // Ensure the object is at the final position
+                grabbedObject.transform.position = targetPos;
+                dropSuccessful = targetStack.TryAddItemAsync(grabbedObject);
+
+                if (dropSuccessful)
+                {
+                    hasObject = false;
+                    grabbedObject.ObjDrop();
+                    grabbedObject = null;
+
+                    await Task.Yield(); // Wait for next frame
+                    foreach (var sensor in sensors.Values)
+                    {
+                        sensor.UpdataDisplayValue();
+                    }
+                }
+                else
+                {
+                    grabbedObject.isMoving = false;
+                    Debug.LogError($"Ag:{id} Failed to drop object into the stack!");
+                    await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.suggestedIterationDuration - timeToMove));
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"Ag:{id} Error during drop: {e.Message}");
+                await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.suggestedIterationDuration - elapsedTime));
+            }
+            finally
+            {
+                targetStack.UnlockForDrop();
             }
         }
-        catch (System.Exception e)
+        catch (Exception e)
         {
-            Debug.LogError($"Ag:{id} Error during drop: {e.Message}");
-            await MoveObjectBack(objStartPos, Mathf.Max(0, EnvironmentManager.iterationDuration - elapsedTime));
+            Debug.LogError($"Ag:{id} Unexpected error during drop operation: {e.Message}");
         }
         finally
         {
-            targetStack.UnlockForDrop();
+            ActionCompleted();
         }
     }
+
     private async Task MoveObjectBack(Vector3 startPos, float duration)
     {
-        float elapsedTime = 0f;
-        Vector3 currentPos = grabbedObject.transform.position;
-
-        while (elapsedTime < duration)
+        try
         {
-            float t = elapsedTime / duration;
-            grabbedObject.transform.position = Vector3.Lerp(currentPos, startPos, t);
-            elapsedTime += Time.deltaTime;
-            await Task.Yield();
+            float elapsedTime = 0f;
+            Vector3 currentPos = grabbedObject.transform.position;
+            while (elapsedTime < duration)
+            {
+                float t = elapsedTime / duration;
+                grabbedObject.transform.position = Vector3.Lerp(currentPos, startPos, t);
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+            }
+            grabbedObject.transform.position = startPos;
         }
-
-        grabbedObject.transform.position = startPos;
+        catch (Exception e)
+        {
+            Debug.LogError($"Ag:{id} Error during MoveObjectBack: {e.Message}");
+        }
     }
 
+    private async Task MoveBack(Vector3 startPos, float duration)
+    {
+        try
+        {
+            float elapsedTime = 0f;
+            Vector3 currentPos = transform.position;
+            while (elapsedTime < duration)
+            {
+                float t = elapsedTime / duration;
+                transform.position = Vector3.Lerp(currentPos, startPos, t);
+                elapsedTime += Time.deltaTime;
+                await Task.Yield();
+            }
+            transform.position = startPos;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"Ag:{id} Error during MoveBack: {e.Message}");
+        }
+    }
+
+    // private void ForceUpdateAllSensors()
+    // {
+    //     foreach (var sensorPair in sensors)
+    //     {
+    //         char direction = sensorPair.Key;
+    //         SensorTrigger sensor = sensorPair.Value;
+
+    //         // Force the sensor to update its value
+    //         sensor.ForceUpdate();
+
+    //         // Update the agent's internal sensor value
+    //         // UpdateSensorValue(direction, sensor.GetSensorValue());
+    //     }
+    // }
 
     private Object FindObjectInCollider(Collider directionCollider)
     {
@@ -367,7 +444,11 @@ public class Agent : MonoBehaviour
 
     public void UpdateSensorValue(char direction, int value)
     {
-        cols[direction] = value;
+        lock (_lock)
+        {
+            _sensorValues[direction] = value;
+            cols[direction] = value;
+        }
     }
 
     private void UpdateSensorPositions()
@@ -381,15 +462,10 @@ public class Agent : MonoBehaviour
 
     public Task<Dictionary<char, int>> GetSensorData()
     {
-        Dictionary<char, int> newCols = new Dictionary<char, int>();
-        foreach (KeyValuePair<char, SensorTrigger> sensor in sensors)
+        lock (_lock)
         {
-            char direction = sensor.Key;
-            SensorTrigger trigger = sensor.Value;
-            newCols[direction] = trigger.GetSensorValue();
+            return Task.FromResult(new Dictionary<char, int>(_sensorValues));
         }
-
-        return Task.FromResult(newCols);
     }
 
     private void UpdateContactSensorPosition()
@@ -413,15 +489,6 @@ public class Agent : MonoBehaviour
 
     // Sensor Setup
     // This setups to what the colliders will be able to collide with
-    private void SetupCollisionMatrix()
-    {
-        // Sensors only interact with Agents, Objects, and Obstacles
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Sensors"), true);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Tiles"), true);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Contact"), true);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Obstacles"), false);
-        Physics.IgnoreLayerCollision(LayerMask.NameToLayer("Sensors"), LayerMask.NameToLayer("Stacks"), false);
-    }
 
     private void GenerateSensors()
     {
@@ -449,7 +516,6 @@ public class Agent : MonoBehaviour
         contactSensor = GenerateContactSensor("ConSensor");
         contactSensor.transform.parent = contactSensorWrapper.transform;
 
-        Utils.SetLayerRecursivelyByName(contactSensorWrapper, "Contact");
     }
 
     private SensorTrigger GenerateSensor(string name, Vector2Int direction)
@@ -461,8 +527,8 @@ public class Agent : MonoBehaviour
 
         SphereCollider collider = sensor.AddComponent<SphereCollider>();
         collider.isTrigger = true;
-        collider.radius = (Enviroment.tileSize / 2) - 0.2f;
-        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 1f) + new Vector3(0, 0.5f, 0);
+        collider.radius = (Enviroment.tileSize / 2) - 0.5f;
+        collider.center = FlatDir23DDir(direction) * (Enviroment.tileSize - 0.8f) + new Vector3(0, 0.7f, 0);
 
         SensorTrigger trigger = collider.AddComponent<SensorTrigger>();
         trigger.parentAgent = this;
@@ -477,6 +543,20 @@ public class Agent : MonoBehaviour
         visualizer.transform.GetComponent<Renderer>().material = sensorMaterial;
         visualizer.SetActive(showColliders);
 
+        // Add TextMesh for number display
+        GameObject textObject = new GameObject("NumberDisplay");
+        textObject.transform.SetParent(sensor.transform);
+        textObject.transform.localPosition = collider.center + Vector3.up * collider.radius;
+        TextMesh textMesh = textObject.AddComponent<TextMesh>();
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.fontSize = 14;
+        textMesh.color = Color.black;
+        textMesh.text = "0"; // Default value
+
+        // Set the TextMesh reference in the SensorTrigger
+        trigger.SetTextMesh(textMesh);
+
         return trigger;
     }
 
@@ -484,7 +564,7 @@ public class Agent : MonoBehaviour
     {
         GameObject sensor = new GameObject(name);
         sensor.transform.SetParent(transform);
-        sensor.layer = LayerMask.NameToLayer("Obstacles");
+        sensor.layer = LayerMask.NameToLayer("Contact");
 
         BoxCollider collider = sensor.AddComponent<BoxCollider>();
         collider.isTrigger = true;
