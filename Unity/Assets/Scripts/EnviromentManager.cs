@@ -1,8 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Threading.Tasks;
-using UnityEditor;
 using Newtonsoft.Json;
 using UnityEngine;
 using System.Threading;
@@ -103,10 +100,9 @@ public class EnvironmentManager : MonoBehaviour
             agentTasks.Add(ExecuteAgentAction(action, ct));
         }
 
-        // Wait for all actions to complete or for the max duration to elapse
+        // Wait for all actions to complete
         await Task.WhenAny(
             Task.WhenAll(agentTasks)
-        // Task.Delay((int)(maxIterationDuration * 1000))
         );
 
         // If the process is cancelled kill all threads

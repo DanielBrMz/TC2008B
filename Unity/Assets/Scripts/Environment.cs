@@ -1,22 +1,22 @@
 using UnityEngine;
 using System.Collections.Generic;
-using UnityEditor.SearchService;
-using System.Linq;
-using Unity.VisualScripting;
-using UnityEngine.UIElements;
-using UnityEditor;
-using System.Runtime.InteropServices;
 
 public class Enviroment : MonoBehaviour
 {
     [Header("Simulation Parameters")]
     public int nAgents = 5;
     public int nItems = 20;
+    public bool genStacksAtRandom = false;
     public int nStacks = 6;
+    public HashSet<Vector2Int> stackPositions = new HashSet<Vector2Int>{
+            new Vector2Int(5,15),
+            new Vector2Int(5,5),
+            new Vector2Int(15,15),
+            new Vector2Int(15,5),
+        };
     public int obstacles = 0;
 
-
-    [Header("Object Parameters")]
+    [Header("Object Prefabs")]
     public GameObject agentPrefab;
     public GameObject objectPrefab;
     public GameObject stackPrefab;
@@ -32,9 +32,8 @@ public class Enviroment : MonoBehaviour
 
     [Header("Base and Walls")]
     [SerializeField] private float wallHeight = 3f;
-    [SerializeField] private float wallGirth = 0.4f;
-    [SerializeField] private float baseThickness = 0.3f;
-
+    [SerializeField] private float wallGirth = 3f;
+    [SerializeField] private float baseThickness = 1f;
 
     [Header("Materials")]
     [SerializeField] private Material tileMaterial;
@@ -60,7 +59,6 @@ public class Enviroment : MonoBehaviour
 
     public static List<Agent> agents;
 
-    public static int agentIds;
 
     // Update is called once per frame
     private void Awake()
@@ -145,8 +143,7 @@ public class Enviroment : MonoBehaviour
     }
 
     private void InitializeStaticVariables()
-    {   
-        agentIds = nAgents;
+    {
         nTiles = n;
         mTiles = m;
         tileSize = tileDimensions;
@@ -161,13 +158,6 @@ public class Enviroment : MonoBehaviour
         GameObject agentsWrapper = new("Agents");
         GameObject itemsWrapper = new("Objects");
         GameObject stacksWrapper = new("Stacks");
-
-        HashSet<Vector2Int> stackPositions = new HashSet<Vector2Int>{
-            new Vector2Int(5,15),
-            new Vector2Int(5,5),
-            new Vector2Int(15,15),
-            new Vector2Int(15,5),
-        };
 
         Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems + nStacks, stackPositions);
 
@@ -196,29 +186,26 @@ public class Enviroment : MonoBehaviour
                 items.Add(newObject);
                 currentObjectId++;
             }
-            // else if (currentStackId < nStacks)
-            // {
-            //     // GameObject newObject = SpawnObject(vectorPos, currentObjectId);
-            //     GameObject newStack = SpawnStack(randomPos, currentObjectId);
-            //     newStack.transform.parent = stacksWrapper.transform;
-            //     stacks.Add(newStack);
-            //     currentStackId++;
-            // }
+            else if (genStacksAtRandom && currentStackId < nStacks)
+            {
+                // GameObject newObject = SpawnObject(vectorPos, currentObjectId);
+                GameObject newStack = SpawnStack(randomPos, currentObjectId);
+                newStack.transform.parent = stacksWrapper.transform;
+                stacks.Add(newStack);
+                currentStackId++;
+            }
         }
 
         // Manually add stacks by position here
-        foreach (Vector2Int pos in stackPositions)
-        {
-            GameObject stackObject = SpawnStack(pos, currentStackId);
-            stacks.Add(stackObject);
-            stackObject.transform.parent = stacksWrapper.transform;
+        if (!genStacksAtRandom)         
+            foreach (Vector2Int pos in stackPositions)
+            {
+                GameObject stackObject = SpawnStack(pos, currentStackId);
+                stacks.Add(stackObject);
+                stackObject.transform.parent = stacksWrapper.transform;
 
-            currentStackId++;
-        }
-
-        // Utils.SetLayerRecursivelyByName(agentsWrapper, "Obstacles");
-        // Utils.SetLayerRecursivelyByName(itemsWrapper, "Objects");
-        // Utils.SetLayerRecursivelyByName(stacksWrapper, "Stacks");
+                currentStackId++;
+            }
     }
 
     private GameObject SpawnStack(Vector2Int pos, int id)

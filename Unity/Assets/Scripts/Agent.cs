@@ -29,8 +29,6 @@ public class Agent : MonoBehaviour
     [Header("Sensor configuration")]
     [SerializeField] private Material sensorMaterial;
 
-    //Model values
-    private readonly Transform orientation; // this will probably go unused unless we implement animations or models
 
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
@@ -57,9 +55,6 @@ public class Agent : MonoBehaviour
         UpdateContactSensorPosition();
         UpdateColliderVisibility();
     }
-
-    // Utils
-    public static readonly char[] directionNames = { 'F', 'B', 'L', 'R' };
 
     private Vector2Int Name2Direction(char name)
     {
@@ -175,13 +170,13 @@ public class Agent : MonoBehaviour
             Object objectToGrab = FindObjectInCollider(directionCollider);
             if (objectToGrab == null)
             {
-                Debug.LogError($"Ag:{id} No object to grab in direction {dir}");
+                Debug.LogWarning($"Ag:{id} No object to grab in direction {dir}");
                 return;
             }
 
             if (!await objectToGrab.TryGrab())
             {
-                Debug.Log($"Ag:{id} Failed to grab object, it was already being grabbed");
+                Debug.LogWarning($"Ag:{id} Failed to grab object, it was already being grabbed");
                 return;
             }
 
@@ -230,13 +225,6 @@ public class Agent : MonoBehaviour
                 {
                     sensor.UpdataDisplayValue();
                 }
-
-                // Specifically set the sensor in the grab direction to 0
-                // if (sensors.TryGetValue(dir, out var grabSensor))
-                // {
-                //     grabSensor.SetSensorValue(0);
-                //     UpdateSensorValue(dir, 0);
-                // }
             }
             else
             {
@@ -275,7 +263,7 @@ public class Agent : MonoBehaviour
             Stack targetStack = FindStackInCollider(directionCollider);
             if (targetStack == null)
             {
-                Debug.LogError($"Ag:{id} No stack to drop into in direction {dir}");
+                Debug.LogWarning($"Ag:{id} No stack to drop into in direction {dir}");
                 return;
             }
 
@@ -361,7 +349,7 @@ public class Agent : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"Ag:{id} Error during MoveObjectBack: {e.Message}");
+            Debug.LogWarning($"Ag:{id} Error during MoveObjectBack: {e.Message}");
         }
     }
 
@@ -382,24 +370,9 @@ public class Agent : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.LogError($"Ag:{id} Error during MoveBack: {e.Message}");
+            Debug.LogWarning($"Ag:{id} Error during MoveBack: {e.Message}");
         }
     }
-
-    // private void ForceUpdateAllSensors()
-    // {
-    //     foreach (var sensorPair in sensors)
-    //     {
-    //         char direction = sensorPair.Key;
-    //         SensorTrigger sensor = sensorPair.Value;
-
-    //         // Force the sensor to update its value
-    //         sensor.ForceUpdate();
-
-    //         // Update the agent's internal sensor value
-    //         // UpdateSensorValue(direction, sensor.GetSensorValue());
-    //     }
-    // }
 
     private Object FindObjectInCollider(Collider directionCollider)
     {
@@ -479,6 +452,7 @@ public class Agent : MonoBehaviour
         {
             SensorTrigger sensorTrigger = sensor.Value;
             sensorTrigger.transform.GetChild(0).gameObject.SetActive(showColliders);
+            sensorTrigger.transform.GetChild(1).gameObject.SetActive(showColliders);
         }
     }
 
@@ -489,7 +463,6 @@ public class Agent : MonoBehaviour
 
     // Sensor Setup
     // This setups to what the colliders will be able to collide with
-
     private void GenerateSensors()
     {
         // Create the sensors container
@@ -553,6 +526,7 @@ public class Agent : MonoBehaviour
         textMesh.fontSize = 14;
         textMesh.color = Color.black;
         textMesh.text = "0"; // Default value
+        textObject.SetActive(showColliders);
 
         // Set the TextMesh reference in the SensorTrigger
         trigger.SetTextMesh(textMesh);
