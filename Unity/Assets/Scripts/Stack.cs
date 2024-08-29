@@ -25,7 +25,7 @@ public class Stack : MonoBehaviour
 
     private void Awake()
     {
-        transform.localScale = new Vector3(Enviroment.tileSize, Enviroment.tileSize/3*2, Enviroment.tileSize);
+        transform.localScale = new Vector3(Enviroment.tileSize - 1f, Enviroment.tileSize/3*2, Enviroment.tileSize - 1f);
         transform.position += new Vector3(0f,Enviroment.tileSize/2,0f);
         transform.gameObject.layer = LayerMask.NameToLayer("Stacks");
         items = new List<Object>();
@@ -68,6 +68,8 @@ public class Stack : MonoBehaviour
 
         // Position the item
         item.transform.position = GetNextItemPosition(nItems);
+
+        item.GetComponent<Collider>().enabled = false;
 
         // Disable item's collider
         Collider itemCollider = item.GetComponent<Collider>();

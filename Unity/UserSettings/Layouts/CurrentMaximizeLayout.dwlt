@@ -21,10 +21,10 @@ MonoBehaviour:
     y: 30
     width: 2560
     height: 1436
-  m_MinSize: {x: 300, y: 100}
-  m_MaxSize: {x: 24288, y: 16192}
+  m_MinSize: {x: 503, y: 271}
+  m_MaxSize: {x: 16192, y: 12117}
   vertical: 0
-  controlID: 12891
+  controlID: 29820
   draggingID: 0
 --- !u!114 &2
 MonoBehaviour:
@@ -145,10 +145,10 @@ MonoBehaviour:
     y: 0
     width: 2056
     height: 1436
-  m_MinSize: {x: 200, y: 100}
-  m_MaxSize: {x: 16192, y: 16192}
+  m_MinSize: {x: 403, y: 271}
+  m_MaxSize: {x: 8096, y: 12117}
   vertical: 1
-  controlID: 12892
+  controlID: 29821
   draggingID: 0
 --- !u!114 &4
 MonoBehaviour:
@@ -171,10 +171,10 @@ MonoBehaviour:
     y: 0
     width: 2056
     height: 973
-  m_MinSize: {x: 200, y: 50}
-  m_MaxSize: {x: 16192, y: 8096}
+  m_MinSize: {x: 403, y: 221}
+  m_MaxSize: {x: 8003, y: 4021}
   vertical: 0
-  controlID: 12893
+  controlID: 29822
   draggingID: 0
 --- !u!114 &5
 MonoBehaviour:
@@ -609,9 +609,9 @@ MonoBehaviour:
   m_PlayAudio: 0
   m_AudioPlay: 0
   m_Position:
-    m_Target: {x: 8.950928, y: 4.977696, z: 18.412481}
+    m_Target: {x: -0.22074063, y: 2.1377592, z: -12.057239}
     speed: 2
-    m_Value: {x: 8.950928, y: 4.977696, z: 18.412481}
+    m_Value: {x: -0.22074063, y: 2.1377592, z: -12.057239}
   m_RenderMode: 0
   m_CameraMode:
     drawMode: 0
@@ -657,13 +657,13 @@ MonoBehaviour:
     m_GridAxis: 1
     m_gridOpacity: 0.5
   m_Rotation:
-    m_Target: {x: -0.03516699, y: 0.96302134, z: -0.21113078, w: -0.16404317}
+    m_Target: {x: 0.054290853, y: 0.4699736, z: -0.028167436, w: 0.8806501}
     speed: 2
-    m_Value: {x: -0.035164647, y: 0.96295714, z: -0.21111672, w: -0.16403224}
+    m_Value: {x: 0.05428649, y: 0.46993583, z: -0.028165173, w: 0.88057935}
   m_Size:
-    m_Target: 1.2315732
+    m_Target: 4.7344403
     speed: 2
-    m_Value: 1.2315732
+    m_Value: 4.7344403
   m_Ortho:
     m_Target: 0
     speed: 2

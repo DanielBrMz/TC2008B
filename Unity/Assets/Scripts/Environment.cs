@@ -163,10 +163,10 @@ public class Enviroment : MonoBehaviour
         GameObject stacksWrapper = new("Stacks");
 
         HashSet<Vector2Int> stackPositions = new HashSet<Vector2Int>{
+            new Vector2Int(5,15),
             new Vector2Int(5,5),
-            new Vector2Int(10,10),
-            new Vector2Int(5,10),
-            new Vector2Int(10,5),
+            new Vector2Int(15,15),
+            new Vector2Int(15,5),
         };
 
         Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems + nStacks, stackPositions);

@@ -119,14 +119,19 @@ public class EnvironmentManager : MonoBehaviour
         // If it was successfull get the sensor data and do it again
         foreach (Agent agent in Enviroment.agents)
         {
-            var sensorData = await agent.GetSensorData();
-            PositionData smt = new PositionData
+            Dictionary<char, int> sensorData = new Dictionary<char, int>();
+            foreach (char direction in new[] { 'F', 'B', 'L', 'R' })
+            {
+                sensorData[direction] = agent.sensors[direction].GetSensorValue();
+            }
+
+            PositionData data = new PositionData
             {
                 id = agent.id,
                 position = sensorData,
                 is_holding = agent.hasObject
             };
-            allAgentData.Add(smt);
+            allAgentData.Add(data);
         }
 
         Debug.Log($"Got info from {allAgentData.Count} agents;");

@@ -35,7 +35,7 @@ public class Agent : MonoBehaviour
     // Sensor values
     private GameObject sensorsContainer; // Wrapper for the colliders
     private GameObject contactSensor;
-    private Dictionary<char, SensorTrigger> sensors;
+    public Dictionary<char, SensorTrigger> sensors;
     public static bool showColliders = false;
 
     // Enviroment
@@ -131,7 +131,7 @@ public class Agent : MonoBehaviour
         Vector2Int newPos = pos + Name2Direction(direction);
         if (value != 0)
         {
-            Debug.LogError($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
+            Debug.LogWarning($"Ag:{id} tried to move into an {Utils.Col2Type(value)}!");
             ActionCompleted();
             return;
         }
@@ -221,8 +221,22 @@ public class Agent : MonoBehaviour
                 grabbedObject = objectToGrab;
                 objectToGrab.ObjGrab(transform);
                 pos = newPos;
-                // Make sure when an object is grabbed the value changes
-                sensors[dir].SetSensorValue(0);
+
+                sensors[dir].ClearSensorValue();
+
+                // Force update all sensors
+                await Task.Yield(); // Wait for next frame
+                foreach (var sensor in sensors.Values)
+                {
+                    sensor.UpdataDisplayValue();
+                }
+
+                // Specifically set the sensor in the grab direction to 0
+                // if (sensors.TryGetValue(dir, out var grabSensor))
+                // {
+                //     grabSensor.SetSensorValue(0);
+                //     UpdateSensorValue(dir, 0);
+                // }
             }
             else
             {
@@ -267,7 +281,7 @@ public class Agent : MonoBehaviour
 
             if (!targetStack.TryLockForDropAsync())
             {
-                Debug.LogError($"Ag:{id} Stack is currently being used by another agent");
+                Debug.LogWarning($"Ag:{id} Stack is currently being used by another agent");
                 return;
             }
 
@@ -372,7 +386,20 @@ public class Agent : MonoBehaviour
         }
     }
 
+    // private void ForceUpdateAllSensors()
+    // {
+    //     foreach (var sensorPair in sensors)
+    //     {
+    //         char direction = sensorPair.Key;
+    //         SensorTrigger sensor = sensorPair.Value;
 
+    //         // Force the sensor to update its value
+    //         sensor.ForceUpdate();
+
+    //         // Update the agent's internal sensor value
+    //         // UpdateSensorValue(direction, sensor.GetSensorValue());
+    //     }
+    // }
 
     private Object FindObjectInCollider(Collider directionCollider)
     {

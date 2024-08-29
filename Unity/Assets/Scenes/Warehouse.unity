@@ -294,11 +294,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nAgents
-      value: 5
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nStacks
       value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: wallGirth
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: wallHeight
@@ -328,6 +332,10 @@ PrefabInstance:
       propertyPath: wallMaterial
       value: 
       objectReference: {fileID: 2100000, guid: 81a1ad358e634d051a90e7d524b40eae, type: 2}
+    - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
+      propertyPath: baseThickness
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: groundMaterial
       value: 
@@ -363,11 +371,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: startupDelay
-      value: 2
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: iterationDelay
-      value: 10
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: maxIterationDuration
@@ -375,7 +383,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: maxIterationDurationDepreciated
-      value: 0.1
+      value: 0.001
       objectReference: {fileID: 0}
     - target: {fileID: 7518530826794642438, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: m_LocalPosition.x
@@ -545,7 +553,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 371544613}
+  - {fileID: 722973324}
   - {fileID: 1096294599}
   - {fileID: 1287617648}
-  - {fileID: 722973324}
   - {fileID: 1441203018}

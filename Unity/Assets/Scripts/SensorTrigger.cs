@@ -6,7 +6,7 @@ public class SensorTrigger : MonoBehaviour
   public char direction;
   private TextMesh numberDisplay;
 
-  private int value = 0;
+  public int value = 0;
 
   private object _lock = new object();
 
@@ -61,6 +61,33 @@ public class SensorTrigger : MonoBehaviour
         UpdateDisplay();
       }
     }
+  }
+
+  public void ClearSensorValue()
+  {
+    lock (_lock)
+    {
+      value = 0;
+      parentAgent.UpdateSensorValue(direction, 0);
+      UpdateDisplay();
+    }
+  }
+
+  public void ForceUpdate()
+  {
+    Collider[] colliders = Physics.OverlapSphere(transform.position, GetComponent<SphereCollider>().radius, LayerMask.GetMask("Objects", "Obstacles", "Stacks"));
+
+    if (colliders.Length > 0)
+    {
+      int newValue = Utils.DetermineColliderType(colliders[0].gameObject.layer);
+      value = newValue;
+    }
+    else
+    {
+      SetSensorValue(0);
+    }
+
+    UpdateDisplay();
   }
 
   private void LateUpdate()

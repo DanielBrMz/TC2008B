@@ -171,7 +171,7 @@ class RobotAgent(ap.Agent):
 
 class ObjectStackingModel(ap.Model):
     def setup(self):
-        self.num_robots = 5
+        self.num_robots = 10
         self.num_objects = self.p.num_objects
         self.grid_size = self.p.grid_size
         self.current_step = 0
