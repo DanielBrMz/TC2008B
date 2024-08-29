@@ -12,8 +12,6 @@ public class Stack : MonoBehaviour
     public Vector2Int pos;
     public int nItems = 0;
     public int maxItems = 5;  // Set this to your desired maximum stack size 
-    public bool IsFull => nItems >= maxItems;
-    public static event System.Action<Stack> OnStackFull;
 
     [Header("Engine values")]
     public Enviroment parentEnv;
@@ -25,9 +23,8 @@ public class Stack : MonoBehaviour
 
     private void Awake()
     {
-        transform.localScale = new Vector3(Enviroment.tileSize, Enviroment.tileSize/3*2, Enviroment.tileSize);
-        transform.position += new Vector3(0f,Enviroment.tileSize/2,0f);
-        transform.gameObject.layer = LayerMask.NameToLayer("Stacks");
+        transform.localScale = new Vector3(Enviroment.tileSize - 0.5f, Enviroment.tileSize/3*2, Enviroment.tileSize - 0.5f);
+        transform.position += new Vector3(0f,Enviroment.tileSize/3,0f);
         items = new List<Object>();
     }
 
@@ -75,10 +72,9 @@ public class Stack : MonoBehaviour
             itemCollider.enabled = false;
 
         // Check if stack is full after adding item
-        if (IsFull)
+        if (nItems >= maxItems)
         {
-            gameObject.layer = LayerMask.NameToLayer("Obstacles");
-            OnStackFull?.Invoke(this);
+            gameObject.layer = LayerMask.NameToLayer("Obstacle");
         }
 
         return true;
