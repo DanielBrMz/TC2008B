@@ -11,12 +11,12 @@ TagManager:
   - 
   - Water
   - UI
-  - Objects
-  - Obstacles
   - Stacks
-  - Sensors
-  - Tiles
+  - Obstacles
+  - Objects
   - Contact
+  - Tiles
+  - Sensors
   - 
   - 
   - 
