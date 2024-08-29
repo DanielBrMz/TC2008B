@@ -1,27 +1,7 @@
+using System.Collections;
 using System.Collections.Generic;
-using System.Data.Common;
-using System.Threading.Tasks;
-using System.Web;
+using System.Net.NetworkInformation;
 using UnityEngine;
-using UnityEngine.Networking;
-
-[System.Serializable]
-public class PositionData
-{
-    public int id;
-    public Dictionary<char, int> position;
-    public bool is_holding;
-}
-
-[System.Serializable]
-public class ActionSintax
-{
-    public int id;
-    public string action;
-    public string direction;
-}
-
-
 
 public class Utils : MonoBehaviour
 {
@@ -63,24 +43,24 @@ public class Utils : MonoBehaviour
     {
         switch (direction)
         {
-            case 'F': return 'B';
-            case 'B': return 'F';
-            case 'L': return 'R';
-            case 'R': return 'L';
-            default: return direction;
+        case 'F': return 'B';
+        case 'B': return 'F';
+        case 'L': return 'R';
+        case 'R': return 'L';
+        default: return direction;
         }
     }
 
     public static int DetermineColliderType(int layer)
     {
-        if (layer == LayerMask.NameToLayer("Objects"))
-            return 1; // Objects
-        else if (layer == LayerMask.NameToLayer("Obstacles"))
-            return 2; // Obstacles
-        else if (layer == LayerMask.NameToLayer("Stacks"))
-            return 3; // Stacks
-        else
-            return 0; // No collision or unknown layer
+    if (layer == LayerMask.NameToLayer("Objects"))
+      return 1; // Objects
+    else if (layer == LayerMask.NameToLayer("Obstacles"))
+      return 2; // Obstacles
+    else if (layer == LayerMask.NameToLayer("Stacks"))
+      return 3; // Stacks
+    else
+      return 0; // No collision or unknown layer
     }
 
     public static string Col2Type(int col)
@@ -97,31 +77,4 @@ public class Utils : MonoBehaviour
                 return "Undefined";
         }
     }
-
-    public static async Task<string> SendGetRequestWithStructDataAsync(string baseUrl, string rawInfo)
-    {
-
-        using (UnityWebRequest webRequest = UnityWebRequest.Post(baseUrl, rawInfo, "application/json"))
-        {
-            var operation = webRequest.SendWebRequest();
-
-            while (!operation.isDone)
-            {
-                await Task.Yield(); // Wait asynchronously until the request is done
-            }
-
-            if (webRequest.result == UnityWebRequest.Result.ConnectionError ||
-                webRequest.result == UnityWebRequest.Result.DataProcessingError ||
-                webRequest.result == UnityWebRequest.Result.ProtocolError)
-            {
-                Debug.LogError($"Error: {webRequest.error}");
-                return null;
-            }
-            else
-            {
-                return webRequest.downloadHandler.text;
-            }
-        }
-    }
-
 }

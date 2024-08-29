@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 518292563586974311}
   - component: {fileID: 3825792520642043765}
   - component: {fileID: 6180466798417761651}
-  m_Layer: 6
+  m_Layer: 8
   m_Name: Stack
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -146,9 +146,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f97ea67dcc06ecb9ba517acb07842b2e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  verticalItemOffset: 2
   id: 0
   pos: {x: 0, y: 0}
   nItems: 0
+  items: []
   maxItems: 5
   parentEnv: {fileID: 0}
