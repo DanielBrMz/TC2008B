@@ -8,12 +8,7 @@ public class Enviroment : MonoBehaviour
     public int nItems = 20;
     public bool genStacksAtRandom = false;
     public int nStacks = 6;
-    public HashSet<Vector2Int> stackPositions = new HashSet<Vector2Int>{
-            new Vector2Int(5,15),
-            new Vector2Int(5,5),
-            new Vector2Int(15,15),
-            new Vector2Int(15,5),
-        };
+    public List<Vector2Int> stackPositions = new List<Vector2Int>();
     public int obstacles = 0;
 
     [Header("Object Prefabs")]
@@ -159,7 +154,10 @@ public class Enviroment : MonoBehaviour
         GameObject itemsWrapper = new("Objects");
         GameObject stacksWrapper = new("Stacks");
 
-        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems + nStacks, stackPositions);
+        HashSet<Vector2Int> sPositions = new HashSet<Vector2Int>();
+        sPositions.UnionWith(stackPositions);
+
+        Vector2Int[] randomPositions = GenerateUniqueRandomPositions(nAgents + nItems + nStacks, sPositions);
 
         int currentAgentId = 0;
         int currentObjectId = 0;
@@ -198,7 +196,7 @@ public class Enviroment : MonoBehaviour
 
         // Manually add stacks by position here
         if (!genStacksAtRandom)         
-            foreach (Vector2Int pos in stackPositions)
+            foreach (Vector2Int pos in sPositions)
             {
                 GameObject stackObject = SpawnStack(pos, currentStackId);
                 stacks.Add(stackObject);
