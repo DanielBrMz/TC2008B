@@ -1,120 +1,178 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Threading.Tasks;
+using UnityEditor;
+using Newtonsoft.Json;
 using UnityEngine;
+using System.Threading;
+using System;
 
 public class EnvironmentManager : MonoBehaviour
 {
     // Set this with a slider to set the delay in which in iteration is finished and we send the current enviroment info to the server
     [Header("Manager parameters")]
-    [SerializeField] private float maxIterationDuration = 1f; // Maximum duration for an iteration
-    public static float iterationDuration;
+    [SerializeField] private float maxIterationDurationDepreciated = 1f; // Maximum duration for an iteration
+    [SerializeField] private string apiUrl = "http://127.0.0.1:5000/gmes";
+    public static float suggestedIterationDuration;
+    [SerializeField] private int startupDelay = 5;
+    [SerializeField] private int iterationDelay = 500;
 
-    private Dictionary<int, Dictionary<char, int>> agentSensorData = new Dictionary<int, Dictionary<char, int>>();
+    private List<Stack> allStacks = new List<Stack>();
+    private int fullStackCount = 0;
 
-    public delegate void AgentActionDelegate(int Id, string action);
-    public static event AgentActionDelegate OnAgentAction;
-    
-    private bool isSimulationRunning = false;
+    private List<PositionData> allAgentData = new List<PositionData>();
 
-    // Instruction utility variables
-    private int _i = 0;
 
+    private CancellationTokenSource _cts;
+    private Task _simulationTask;
 
     private void Awake()
     {
-        iterationDuration = maxIterationDuration;
+        suggestedIterationDuration = maxIterationDurationDepreciated;
+    }
+
+    private void Start()
+    {
+        allStacks = new List<Stack>(FindObjectsOfType<Stack>());
+        Stack.OnStackFull += HandleStackFull;
     }
 
     public async void Initialize()
     {
+        await InitializeAgentPositions();
+        await Task.Delay(startupDelay * 1000);
         await StartSimulation();
+    }
+
+    public async Task InitializeAgentPositions()
+    {
+        allAgentData.Clear(); // Clear the list before populating
+        foreach (Agent agent in Enviroment.agents)
+        {
+            var sensorData = await agent.GetSensorData();
+
+            PositionData data = new PositionData
+            {
+                id = agent.id,
+                position = sensorData,
+                is_holding = agent.hasObject
+            };
+            allAgentData.Add(data);
+        }
+        Debug.Log($"Initialized {allAgentData.Count} agents;");
     }
 
     public async Task StartSimulation()
     {
-        isSimulationRunning = true;
-        while (isSimulationRunning)
+        _cts = new CancellationTokenSource();
+        _simulationTask = RunSimulationLoop(_cts.Token);
+
+        try
         {
-            await RunIteration();
-            // Here you would send the collected data to the server and wait for new instructions
-            // For now, we'll just pause briefly
-            await Task.Delay(100);
+            await _simulationTask;
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.Log("Simulation was cancelled.");
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"Simulation encountered an error: {ex}");
         }
     }
 
-    private async Task RunIteration()
+    private async Task RunSimulationLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            await RunIteration(ct);
+            await Task.Delay(iterationDelay, ct);
+        }
+    }
+
+    private async Task RunIteration(CancellationToken ct)
     {
         List<Task> agentTasks = new List<Task>();
+        // Send agentInfo to server and return list of actions
+        List<ActionSintax> actions = await GetActionsFromServer(allAgentData);
 
-        // Start all agent actions
-        foreach (Agent agent in Enviroment.agents)
+        // Add all actions to agentTasks so they can be awaited
+        foreach (var action in actions)
         {
-            string action = await GetActionFromServer(agent.id);
-            agentTasks.Add(ExecuteAgentAction(agent, action));
+            agentTasks.Add(ExecuteAgentAction(action, ct));
         }
 
         // Wait for all actions to complete or for the max duration to elapse
         await Task.WhenAny(
-            Task.WhenAll(agentTasks),
-            Task.Delay((int)(maxIterationDuration * 1000))
+            Task.WhenAll(agentTasks)
+        // Task.Delay((int)(maxIterationDuration * 1000))
         );
 
-        // Collect sensor data from all agents
+        // If the process is cancelled kill all threads
+        if (ct.IsCancellationRequested) return;
+
+        // Ensure all sensor data is up to date
+        await Task.Yield();
+
+        allAgentData.Clear();
+        // If it was successfull get the sensor data and do it again
         foreach (Agent agent in Enviroment.agents)
         {
-            agentSensorData[agent.id] = await agent.GetSensorData();
+            var sensorData = await agent.GetSensorData();
+            PositionData smt = new PositionData
+            {
+                id = agent.id,
+                position = sensorData,
+                is_holding = agent.hasObject
+            };
+            allAgentData.Add(smt);
         }
 
-        // Here you would process the agentSensorData and prepare it for sending to the server
+        Debug.Log($"Got info from {allAgentData.Count} agents;");
     }
 
-    private async Task ExecuteAgentAction(Agent agent, string action)
+    private async Task ExecuteAgentAction(ActionSintax action, CancellationToken ct)
     {
-        OnAgentAction?.Invoke(agent.id, action);
-        await agent.ExecuteAction(action);
-    }
-    
-    List<string> actions = new List<string>{
-        "GB",
-        "MF",
-        "DF",
-        "GL",
-        "MR",
-        "DF",
-        "GR",
-        "ML",
-        "DF",
-    };
+        if (ct.IsCancellationRequested) return;
 
-    private async Task<string> GetActionFromServer(int agentId)
+        await Enviroment.agents[action.id].ExecuteAction(action);
+    }
+
+    private async Task<List<ActionSintax>> GetActionsFromServer(List<PositionData> data)
     {
-        // This is where you'd implement the logic to get the action from the server
-        // For now, we'll just return a random action
-        await Task.Delay(20); // Simulating network delay
-        char randomDirection = Utils.Direction2Name(Utils.directions[Random.Range(0, Utils.directions.Length)]);
-        return $"M{randomDirection}";
-        // return GetNextAction(actions);
+        Debug.LogWarning("Request sent!!! ===>");
+        string json = JsonConvert.SerializeObject(data);
+        Debug.Log("Sent: " + json);
+        string response = await Utils.SendGetRequestWithStructDataAsync(apiUrl, json);
+        Debug.LogWarning("Resp: " + response);
+        return JsonConvert.DeserializeObject<List<ActionSintax>>(response);
     }
 
-    private string GetNextAction(List<string> actions)
-{
-    if (actions == null || actions.Count == 0)
+    public void StopSimulation()
+    {
+        _cts?.Cancel();
+    }
+
+    private void OnDestroy()
     {
         StopSimulation();
     }
 
-    if (_i >= actions.Count)
+    private void OnApplicationQuit()
     {
-        _i = 0; // Reset to the beginning if we've reached the end
+        StopSimulation();
     }
 
-    return actions[_i++];
-}
-
-    public void StopSimulation()
+    private void HandleStackFull(Stack stack)
     {
-        isSimulationRunning = false;
+        fullStackCount++;
+        if (fullStackCount == allStacks.Count)
+        {
+            Debug.Log("Simulation success. All stacks are full");
+            StopSimulation();
+        }
     }
+
 }
 

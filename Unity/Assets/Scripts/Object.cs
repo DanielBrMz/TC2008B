@@ -72,14 +72,16 @@ public class Object : MonoBehaviour
         isGrabbed = true;
         grabber = newGrabber;
         GetComponent<Collider>().enabled = false;
+        Utils.SetLayerRecursivelyByName(transform.gameObject, "Stacks");
     }
 
     // This function is temporal while I figure stacks out
-    public void ObjDrop(Stack newStack)
+    public void ObjDrop()
     {
         isGrabbed = false;
         grabber = null;
         isMoving = false;
+        transform.gameObject.layer = LayerMask.NameToLayer("Default");
     }
 
     public void SetRandomModel()

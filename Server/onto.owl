@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:owl="http://www.w3.org/2002/07/owl#"
+         xml:base="file://onto.owl"
+         xmlns="file://onto.owl#">
+
+<owl:Ontology rdf:about="file://onto.owl"/>
+
+<owl:ObjectProperty rdf:about="#has_position">
+  <rdfs:domain rdf:resource="#Robot"/>
+  <rdfs:range rdf:resource="#Position"/>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#is_holding">
+  <rdfs:domain rdf:resource="#Robot"/>
+  <rdfs:range rdf:resource="#Object"/>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#has_perception">
+  <rdfs:domain rdf:resource="#Robot"/>
+  <rdfs:range rdf:resource="#Direction"/>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#can_perform">
+  <rdfs:domain rdf:resource="#Robot"/>
+  <rdfs:range rdf:resource="#Action"/>
+</owl:ObjectProperty>
+
+<owl:Class rdf:about="#Robot">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Object">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Position">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Direction">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Action">
+  <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Forward">
+  <rdfs:subClassOf rdf:resource="#Direction"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Backward">
+  <rdfs:subClassOf rdf:resource="#Direction"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Left">
+  <rdfs:subClassOf rdf:resource="#Direction"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Right">
+  <rdfs:subClassOf rdf:resource="#Direction"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Move">
+  <rdfs:subClassOf rdf:resource="#Action"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Grab">
+  <rdfs:subClassOf rdf:resource="#Action"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Drop">
+  <rdfs:subClassOf rdf:resource="#Action"/>
+</owl:Class>
+
+<owl:Class rdf:about="#Wait">
+  <rdfs:subClassOf rdf:resource="#Action"/>
+</owl:Class>
+
+
+</rdf:RDF>
