@@ -7,7 +7,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
 import json
 import threading
-import agentpy as ap
+import agentpy as apw
 from matplotlib import pyplot as plt
 import IPython
 import random
