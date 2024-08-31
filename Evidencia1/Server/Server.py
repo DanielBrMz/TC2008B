@@ -1,18 +1,25 @@
-from flask import Flask, request, jsonify
-import agentpy as ap
+from flask import Flask, request, jsonify, g
 import json
 import traceback
 from RobotAgent import ObjectStackingModel, RobotAgent, onto
 
 app = Flask(__name__)
 
-# Initialize the model
-parameters = {
-    'num_objects': 20,
-    'grid_size': 10,
-}
-model = ObjectStackingModel(parameters)
-model.setup()
+def init_model_and_states():
+    parameters = {
+        'num_objects': 20,
+        'grid_size': 10,
+    }
+    model = ObjectStackingModel(parameters)
+    model.setup()
+    robot_states = {robot.onto_robot.id: robot.get_state() for robot in model.robots}
+    return model, robot_states
+
+@app.before_request
+def before_request():
+    if not hasattr(app, 'model') or not hasattr(app, 'robot_states'):
+        app.model, app.robot_states = init_model_and_states()
+    app.logger.debug(f"Current robot states: {app.robot_states}")
 
 @app.route('/gmrs', methods=['POST'])
 def robot_action():
@@ -28,11 +35,10 @@ def robot_action():
 
         robot_id = data['id']
         perception = data['position']
-        is_holding = data['is_holding']
 
-        app.logger.debug(f"Current robots in model: {[r.onto_robot.id for r in model.robots]}")
+        app.logger.debug(f"Current robots in model: {[r.onto_robot.id for r in g.model.robots]}")
 
-        robot = next((r for r in model.robots if r.onto_robot.id == robot_id), None)
+        robot = next((r for r in g.model.robots if r.onto_robot.id == robot_id), None)
         if robot is None:
             app.logger.error(f"Robot with id {robot_id} not found.")
             return jsonify({"error": "Robot not found"}), 404
@@ -41,8 +47,7 @@ def robot_action():
 
         perception_json = json.dumps({
             "id": robot_id,
-            "position": perception,
-            "is_holding": is_holding
+            "position": perception
         })
 
         app.logger.debug(f"Perception JSON: {perception_json}")
@@ -66,7 +71,7 @@ def robot_action():
             return jsonify({"error": f"Error in robot action: {str(e)}"}), 500
 
         try:
-            model.update_environment(robot, action)
+            g.model.update_environment(robot, action)
         except Exception as e:
             app.logger.error(f"Error in model.update_environment(): {str(e)}")
             app.logger.error(traceback.format_exc())
@@ -88,45 +93,40 @@ def robot_action():
         app.logger.error(traceback.format_exc())
         return jsonify({"error": "An internal server error occurred", "details": str(e)}), 500
     
+
 @app.route('/gmes', methods=['POST'])
 def robot_actions():
     try:
         data = request.json
-        
         app.logger.debug(f"Received data: {data}")
 
         if not isinstance(data, list):
             return jsonify({"error": "Invalid input. Expected an array of robot perceptions."}), 400
 
-        # Initialize a new model for each request
-        model = ObjectStackingModel(parameters)
-        model.setup()
-
         actions = []
 
         for robot_perception in data:
-            if 'id' not in robot_perception or 'position' not in robot_perception or 'is_holding' not in robot_perception:
+            if 'id' not in robot_perception or 'position' not in robot_perception:
                 return jsonify({"error": "Invalid input. Each robot perception must have 'id' and 'position'."}), 400
 
             robot_id = robot_perception['id']
             perception = robot_perception['position']
-            is_holding = robot_perception['is_holding']
 
-            robot = next((r for r in model.robots if r.onto_robot.id == robot_id), None)
+            robot = next((r for r in app.model.robots if r.onto_robot.id == robot_id), None)
             if robot is None:
                 app.logger.error(f"Robot with id {robot_id} not found.")
                 continue
 
-            app.logger.debug(f"Processing robot: {robot.onto_robot.id}, Position: {robot.onto_robot.has_position}, Holding: {robot.is_holding_box}")
+            stored_state = app.robot_states.get(robot_id)
+            app.logger.debug(f"Processing robot: {robot_id}, Stored state: {stored_state}")
 
             perception_json = json.dumps({
                 "id": robot_id,
-                "position": perception,
-                "is_holding": is_holding
+                "position": perception
             })
 
             try:
-                action = robot.step(perception_json)
+                action = robot.step(perception_json, stored_state)
                 app.logger.debug(f"Action taken by robot {robot_id}: {action}")
                 
                 action_parts = action.split('_')
@@ -139,21 +139,22 @@ def robot_actions():
                     "direction": direction
                 })
 
-                # Update the environment based on the action
-                model.update_environment(robot, action)
+                app.model.update_environment(robot, action)
+
+                app.robot_states[robot_id] = robot.get_state()
+                app.logger.debug(f"Updated state for robot {robot_id}: {app.robot_states[robot_id]}")
 
             except Exception as e:
                 app.logger.error(f"Error in robot.step() for robot {robot_id}: {str(e)}")
                 app.logger.error(traceback.format_exc())
 
-        # Increment the model's step counter
-        model.current_step += 1
+        app.model.current_step += 1
 
-        # Check end condition
-        if model.check_end_condition():
+        if app.model.check_end_condition():
             app.logger.info("Simulation ended")
-            model.end()
+            app.model.end()
 
+        app.logger.debug(f"Final robot states after this step: {app.robot_states}")
         return jsonify(actions)
 
     except Exception as e:

@@ -1,5 +1,4 @@
 import agentpy as ap
-import numpy as np
 import json
 import random
 from owlready2 import *
@@ -72,7 +71,7 @@ class RobotAgent(ap.Agent):
         self.onto_robot.has_position = [onto.Position()]
         self.movements = 0
         self.perception_data = {}
-        self.is_holding_box = False  # New attribute to track if the robot is holding a box
+        self.is_holding_box = False
         self.rules = [
             ({"perception": {"F": 1}, "is_holding": False}, "grab_F"),
             ({"perception": {"B": 1}, "is_holding": False}, "grab_B"),
@@ -84,13 +83,21 @@ class RobotAgent(ap.Agent):
             ({"perception": {"R": 3}, "is_holding": True}, "drop_R"),
         ]
 
-    def update_state(self, perception_json):
+    def get_state(self):
+        return {
+            "id": self.onto_robot.id,
+            "is_holding_box": self.is_holding_box,
+            "movements": self.movements
+        }
+
+    def update_state(self, perception_json, stored_state=None):
         print(f"Updating state with perception: {perception_json}")
         perception = json.loads(perception_json)
         self.onto_robot.id = perception["id"]
         self.perception_data = perception["position"]
-        self.is_holding_box = perception["is_holding"]
-        
+        if stored_state:
+            #self.is_holding_box = stored_state["is_holding_box"]
+            self.movements = stored_state["movements"]
         print(f"State updated. Robot ID: {self.onto_robot.id}, Holding: {self.is_holding_box}, Perception: {self.perception_data}")
 
     def check_rule(self, rule):
@@ -114,7 +121,7 @@ class RobotAgent(ap.Agent):
         return [direction for direction, value in self.perception_data.items() if value == 0]
 
     def perceive_and_act(self):
-        print("Checking rules for perception")
+        print(f"Perceiving and acting. Is holding box: {self.is_holding_box}")
         
         if self.is_holding_box:
             stack_directions = self.get_stack_directions()
@@ -146,13 +153,13 @@ class RobotAgent(ap.Agent):
         else:
             print("No free space, staying put")
             return "wait"
-
+        
     def act(self, action):
         print(f"Acting: {action}")
         if action.startswith("move_"):
             self.movements += 1
-        # elif action.startswith("grab_"):
-        #     self.is_holding_box = True
+        elif action.startswith("grab_"):
+            self.is_holding_box = True
         elif action.startswith("drop_"):
             self.is_holding_box = False
         return action
@@ -162,16 +169,15 @@ class RobotAgent(ap.Agent):
         action = self.perceive_and_act()
         return json.dumps({"action": action})
 
-    def step(self, perception_json):
+    def step(self, perception_json, stored_state=None):
         print(f"Step method called with perception: {perception_json}")
-        self.update_state(perception_json)
-        action_json = self.reason()
-        action = json.loads(action_json)["action"]
+        self.update_state(perception_json, stored_state)
+        action = self.perceive_and_act()
         return self.act(action)
 
 class ObjectStackingModel(ap.Model):
     def setup(self):
-        self.num_robots = 10
+        self.num_robots = 5
         self.num_objects = self.p.num_objects
         self.grid_size = self.p.grid_size
         self.current_step = 0
@@ -180,7 +186,7 @@ class ObjectStackingModel(ap.Model):
 
         self.robots = ap.AgentList(self, self.num_robots, RobotAgent)
         for i, robot in enumerate(self.robots):
-            robot.onto_robot.id = i;
+            robot.onto_robot.id = i
         self.grid.add_agents(self.robots, random=True, empty=True)
 
         self.objects = ap.AgentList(self, self.num_objects, ap.Agent)
@@ -216,8 +222,7 @@ class ObjectStackingModel(ap.Model):
 
         return json.dumps({
             "id": robot.onto_robot.id,
-            "position": perception,
-            "is_holding": robot.is_holding_box,
+            "position": perception
         })
 
     def update_environment(self, robot, action):

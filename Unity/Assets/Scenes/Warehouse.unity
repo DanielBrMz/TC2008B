@@ -286,7 +286,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nItems
-      value: 30
+      value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nTiles
@@ -294,7 +294,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nAgents
-      value: 10
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 1492976209649619076, guid: f56dc3bb783ec915a8404ac1940862a7, type: 3}
       propertyPath: nStacks
@@ -371,7 +371,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: startupDelay
-      value: 10
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: iterationDelay
@@ -383,7 +383,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6771040319269762966, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: maxIterationDurationDepreciated
-      value: 0.001
+      value: 0.01
       objectReference: {fileID: 0}
     - target: {fileID: 7518530826794642438, guid: f83dfcccf59f74fb5869423c7eabc675, type: 3}
       propertyPath: m_LocalPosition.x

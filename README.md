@@ -21,6 +21,29 @@ En esta actividad se desarrolló una simulación basada en agentes que consiste 
 git clone https://github.com/DanielBrMz/TC2008B.git
 ```
 
+### Servidor
+Se requiere correr el servidor de Python para que la simulación funcione
+
+> [!TIP]
+> Se recomienda crear un ambiente virtual para instalar las dependencias correctamente y para asegurarse de que el programa corra sin conflictos
+
+- Navega a ```Evidencia1/Server```
+
+- Instala las dependencias del proyecto
+> [!WARNING]
+> Solo incluimos las dependencias indispensables, puede que necesite instalar otros paquetes que suponemos ya deberian estar instalados en su ambiente
+```bash
+pip install -r requirements.txt
+````
+
+- Corre el server y copia la URL (en la ruta `/gmes`) al componente de Unity `EnviromentManager`
+
+```bash
+python Evidencia1/Server/Server.py
+```
+> [!INFO]
+> Si estas corriendo el server en la misma computadora que el proyecto de Unity, la url por defecto sera la correcta
+
 ### Unity
 - Abre Unity Hub, da click en agregar y selecciona la carpeta **Unity**
 
@@ -28,8 +51,5 @@ git clone https://github.com/DanielBrMz/TC2008B.git
 
 - Una vez que se haya cargado el proyecto, se debe de abrir la escena llamada **Warehouse**
 
-### Servidor (WIP)
-Se requiere correr el servidor de Python para que la simulación funcione
-```bash
-python Server/server.py
-```
+> [!WARNING]
+> El proyecto fallara instantaneamente si no encuentra respuesta del servidor de python

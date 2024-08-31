@@ -10,7 +10,7 @@ public class PositionData
 {
     public int id;
     public Dictionary<char, int> position;
-    public bool is_holding;
+    // public bool is_holding;
 }
 
 [System.Serializable]
