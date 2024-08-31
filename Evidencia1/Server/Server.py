@@ -96,10 +96,6 @@ def robot_actions():
         if not isinstance(data, list):
             return jsonify({"error": "Invalid input. Expected an array of robot perceptions."}), 400
 
-        # Initialize a new model for each request
-        model = ObjectStackingModel(parameters)
-        model.setup()
-
         actions = []
 
         for robot_perception in data:
