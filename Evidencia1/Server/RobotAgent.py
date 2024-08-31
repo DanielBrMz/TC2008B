@@ -96,7 +96,7 @@ class RobotAgent(ap.Agent):
         self.onto_robot.id = perception["id"]
         self.perception_data = perception["position"]
         if stored_state:
-            self.is_holding_box = stored_state["is_holding_box"]
+            #self.is_holding_box = stored_state["is_holding_box"]
             self.movements = stored_state["movements"]
         print(f"State updated. Robot ID: {self.onto_robot.id}, Holding: {self.is_holding_box}, Perception: {self.perception_data}")
 
