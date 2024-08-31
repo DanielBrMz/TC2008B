@@ -1,2 +1,0 @@
-# Python virtual environment
-venv/
