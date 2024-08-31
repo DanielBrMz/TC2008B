@@ -1,18 +1,21 @@
-from flask import Flask, request, jsonify
-import agentpy as ap
+from flask import Flask, request, jsonify, g
 import json
 import traceback
 from RobotAgent import ObjectStackingModel, RobotAgent, onto
 
 app = Flask(__name__)
 
-# Initialize the model
-parameters = {
-    'num_objects': 20,
-    'grid_size': 10,
-}
-model = ObjectStackingModel(parameters)
-model.setup()
+
+
+@app.before_request
+def before_request():
+    # Initialize the model
+    parameters = {
+        'num_objects': 20,
+        'grid_size': 10,
+    }
+    g.model = ObjectStackingModel(parameters)
+    g.model.setup()
 
 @app.route('/gmrs', methods=['POST'])
 def robot_action():
@@ -31,7 +34,7 @@ def robot_action():
 
         app.logger.debug(f"Current robots in model: {[r.onto_robot.id for r in model.robots]}")
 
-        robot = next((r for r in model.robots if r.onto_robot.id == robot_id), None)
+        robot = next((r for r in g.model.robots if r.onto_robot.id == robot_id), None)
         if robot is None:
             app.logger.error(f"Robot with id {robot_id} not found.")
             return jsonify({"error": "Robot not found"}), 404
@@ -64,7 +67,7 @@ def robot_action():
             return jsonify({"error": f"Error in robot action: {str(e)}"}), 500
 
         try:
-            model.update_environment(robot, action)
+            g.model.update_environment(robot, action)
         except Exception as e:
             app.logger.error(f"Error in model.update_environment(): {str(e)}")
             app.logger.error(traceback.format_exc())
@@ -86,8 +89,10 @@ def robot_action():
         app.logger.error(traceback.format_exc())
         return jsonify({"error": "An internal server error occurred", "details": str(e)}), 500
     
+
 @app.route('/gmes', methods=['POST'])
 def robot_actions():
+
     try:
         data = request.json
         
@@ -105,7 +110,7 @@ def robot_actions():
             robot_id = robot_perception['id']
             perception = robot_perception['position']
 
-            robot = next((r for r in model.robots if r.onto_robot.id == robot_id), None)
+            robot = next((r for r in g.model.robots if r.onto_robot.id == robot_id), None)
             if robot is None:
                 app.logger.error(f"Robot with id {robot_id} not found.")
                 continue
@@ -132,19 +137,19 @@ def robot_actions():
                 })
 
                 # Update the environment based on the action
-                model.update_environment(robot, action)
+                g.model.update_environment(robot, action)
 
             except Exception as e:
                 app.logger.error(f"Error in robot.step() for robot {robot_id}: {str(e)}")
                 app.logger.error(traceback.format_exc())
 
         # Increment the model's step counter
-        model.current_step += 1
+        g.model.current_step += 1
 
         # Check end condition
-        if model.check_end_condition():
+        if g.model.check_end_condition():
             app.logger.info("Simulation ended")
-            model.end()
+            g.model.end()
 
         return jsonify(actions)
 
