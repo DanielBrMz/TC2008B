@@ -56,7 +56,7 @@ public class EnvironmentManager : MonoBehaviour
             {
                 id = agent.id,
                 position = sensorData,
-                is_holding = agent.hasObject
+                // is_holding = agent.hasObject
             };
             allAgentData.Add(data);
         }
@@ -129,7 +129,7 @@ public class EnvironmentManager : MonoBehaviour
             {
                 id = agent.id,
                 position = sensorData,
-                is_holding = agent.hasObject
+                // is_holding = agent.hasObject
             };
             allAgentData.Add(data);
         }
