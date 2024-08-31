@@ -5,8 +5,6 @@ from RobotAgent import ObjectStackingModel, RobotAgent, onto
 
 app = Flask(__name__)
 
-
-
 @app.before_request
 def before_request():
     # Initialize the model
@@ -32,7 +30,7 @@ def robot_action():
         robot_id = data['id']
         perception = data['position']
 
-        app.logger.debug(f"Current robots in model: {[r.onto_robot.id for r in model.robots]}")
+        app.logger.debug(f"Current robots in model: {[r.onto_robot.id for r in g.model.robots]}")
 
         robot = next((r for r in g.model.robots if r.onto_robot.id == robot_id), None)
         if robot is None:
