@@ -136,32 +136,43 @@ class GuardAgent(AgentBase):
         position.has_x = 0
         position.has_y = 50
         self.agent.has_position = position
+        self.alarm_triggered = False
+        self.investigation_target = None
 
     def process_messages(self):
         messages = self.receive_messages()
         for message in messages:
-            if message.has_content == "Target reached":
-                return self.investigate()
+            if isinstance(message.has_sender, onto.Drone):
+                return self.process_drone_info(message.has_content)
         return self.command_drone()
 
+    def process_drone_info(self, drone_info):
+        if isinstance(drone_info, onto.Fugitive):
+            self.investigation_target = drone_info.has_position
+            return self.investigate()
+        elif isinstance(drone_info, onto.Mouse):
+            # Ignore mice, continue patrolling
+            return self.command_drone()
+        else:
+            # No detection, continue patrolling
+            return self.command_drone()
+
     def investigate(self):
-        # Implement investigation logic
-        if self.fugitive_found():
-            self.agent.has_action = "alarm"
-            return "alarm", None
+        if self.investigation_target:
+            if not self.alarm_triggered:
+                self.alarm_triggered = True
+                self.agent.has_action = "alarm"
+                return "alarm", None
+            else:
+                return "end_simulation", None
         else:
             return self.command_drone()
 
     def command_drone(self):
-        # Implement drone command logic
-        command = "move_random"  # For example
+        # Implement patrol logic
+        command = "investigate"  # Always ask drone to investigate
         self.send_message(onto.Drone, command)
         return "guard", command
-
-    def fugitive_found(self):
-        # Implement fugitive detection logic
-        # For now, let's say there's a 10% chance of finding the fugitive
-        return np.random.random() < 0.1
 
     def find_path(self, start, goal):
         def heuristic(a, b):
@@ -172,7 +183,7 @@ class GuardAgent(AgentBase):
             neighbors = []
             for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                 nx, ny = x + dx, y + dy
-                if 0 <= nx < 100 and 0 <= ny < 100 and self.environment[ny, nx] == 0:  # Note the [y, x] indexing
+                if 0 <= nx < 100 and 0 <= ny < 100 and self.environment[ny, nx] == 0:
                     neighbors.append(self.get_position(nx, ny))
             return neighbors
         
@@ -313,6 +324,12 @@ class DroneAgent(AgentBase):
         
         logger.warning(f"No path found from ({start.has_x}, {start.has_y}) to ({goal.has_x}, {goal.has_y})")
         return None
+    
+    def execute_guard_command(self, command):
+        if command == "investigate":
+            return "investigate", self.agent.has_detected_object
+        # ... (other commands can be added here)
+        return "idle", None
 
     def get_direction(self, current, next):
         dx = next.has_x - current.has_x
@@ -329,18 +346,22 @@ class DroneAgent(AgentBase):
             return None
 
     def detect(self, data):
-        messages = self.receive_messages()
-        for message in messages:
-            if isinstance(message.has_sender, onto.Camera):
-                # Process detection message from camera
-                target = eval(message.has_content.split("at ")[1])
-                self.set_target_position(target[0], target[1])
-            elif isinstance(message.has_sender, onto.Guard):
-                # Process command from guard
-                return self.execute_guard_command(message.has_content)
-
         current_position = self.get_position(data['position'][0], data['position'][1])
         self.agent.has_position = current_position
+        
+        detected_object = None
+        if data['Detect'] > 0:
+            detected_object = onto.Fugitive() if data['Detect'] == 2 else onto.Mouse()
+            object_position = self.get_position(data['DetectPosition'][0], data['DetectPosition'][1])
+            detected_object.has_position = object_position
+            self.agent.has_detected_object = detected_object
+        
+        messages = self.receive_messages()
+        for message in messages:
+            if isinstance(message.has_sender, onto.Guard):
+                return self.execute_guard_command(message.has_content)
+        
+        return self.move(), detected_object
     
 class MultiAgentSystem:
     def __init__(self):
