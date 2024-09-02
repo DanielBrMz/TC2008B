@@ -63,7 +63,7 @@ with onto:
         pass
 
 # Save the ontology
-onto.save()
+    onto.save()
 
 class RobotAgent(ap.Agent):
     def setup(self):

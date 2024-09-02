@@ -1,3 +1,4 @@
+# Client.py
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -290,7 +291,7 @@ class Application(tk.Tk):
         else:  # drone phase
             data = {
                 "Drone": {
-                    "position": [drone_detection["position"][0], self.grid.rows - 1 - drone_detection["position"][1]],  # Flip y-coordinate
+                    "position": [drone_detection["position"][0], self.grid.rows - 1 - drone_detection["position"][1]        ],  # Flip y-coordinate
                     "Detect": drone_detection["Detect"]
                 }
             }
@@ -300,6 +301,8 @@ class Application(tk.Tk):
         try:
             response = requests.post('http://localhost:5000/detect', json=data, timeout=0.1)
             result = response.json()
+
+            logger.info(f"Received data from server: {json.dumps(result, indent=2)}")
             
             if 'Camera' in result:
                 for i, cam in enumerate(result['Camera']):

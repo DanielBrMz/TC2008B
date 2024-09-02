@@ -1,3 +1,4 @@
+# Server.py
 from flask import Flask, request, jsonify
 from Multiagent import MultiAgentSystem
 import logging
@@ -6,11 +7,11 @@ import json
 app = Flask(__name__)
 mas = MultiAgentSystem()
 
-# Configurar logging
+# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Variable global para controlar la fase de la simulación
+# Global variable to control the simulation phase
 simulation_phase = "camera"
 
 @app.route('/detect', methods=['POST'])
@@ -19,6 +20,7 @@ def detect():
     data = request.json
 
     logger.info(f"Received data: {json.dumps(data, indent=2)}")
+    logger.info(f"Current simulation phase: {simulation_phase}")
 
     try:
         if simulation_phase == "camera":
@@ -27,9 +29,10 @@ def detect():
                 return jsonify({"error": "Invalid data format for camera phase"}), 400
             
             camera_data = data['Camera']
+            logger.info(f"Processing camera data: {json.dumps(camera_data, indent=2)}")
             camera_results, drone_action, drone_direction = mas.process_detection(camera_data, None)
             
-            # Chequeamos si alguna cámara detectó algo
+            # Check if any camera detected something
             if any(result['action'] == 'alarm' for result in camera_results):
                 simulation_phase = "drone"
                 logger.info("Switching to drone phase")
@@ -48,6 +51,7 @@ def detect():
                 return jsonify({"error": "Invalid data format for drone phase"}), 400
             
             drone_data = data['Drone']
+            logger.info(f"Processing drone data: {json.dumps(drone_data, indent=2)}")
             camera_results, drone_action, drone_direction = mas.process_detection(None, drone_data)
             
             response = {

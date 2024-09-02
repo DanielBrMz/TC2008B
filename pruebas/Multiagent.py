@@ -1,3 +1,4 @@
+# Multiagent.py
 import agentpy as ap
 from owlready2 import *
 import numpy as np
@@ -7,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Create ontology
-onto = get_ontology("http://example.org/surveillance_ontology.owl")
+onto = get_ontology("file://onto.owl")
 
 with onto:
     class Camera(Thing):
@@ -55,6 +56,8 @@ with onto:
     class has_vision_radius(FunctionalProperty, DataProperty):
         domain = [Camera, Drone]
         range = [int]
+
+onto.save()
 
 class CameraAgent(ap.Agent):
     def setup(self):
@@ -120,7 +123,6 @@ class DroneAgent(ap.Agent):
 
     def move(self, grid):
         current_position = self.drone.has_position
-        logger.info(f"Drone current position: ({current_position.has_x}, {current_position.has_y})")
         
         if self.drone.has_detected_object:
             target = self.get_position(0, 50)
@@ -198,30 +200,38 @@ class DroneAgent(ap.Agent):
         else:
             return None
     
-    def detect(self, data, grid):
-        position = self.get_position(data['position'][0], data['position'][1])
-        self.drone.has_position = position
+    def detect(self, data, grid, target_position):
+        current_position = self.get_position(data['position'][0], data['position'][1])
+        self.drone.has_position = current_position
+        logger.info(f"Drone current position: ({current_position.has_x}, {current_position.has_y})")
+        
+        if target_position:
+            self.target_position = self.get_position(target_position[0], target_position[1])
+            logger.info(f"Target position updated: ({self.target_position.has_x}, {self.target_position.has_y})")
+        elif self.target_position:
+            logger.info(f"Using existing target position: ({self.target_position.has_x}, {self.target_position.has_y})")
+        else:
+            logger.info("No target position set")
         
         if data['Detect'] > 0:
             detected_object = onto.Fugitive() if data['Detect'] == 2 else onto.Mouse()
-            object_position = self.get_position(self.target_position.has_x, self.target_position.has_y)
-            detected_object.has_position = object_position
-            self.drone.has_detected_object = detected_object
+            if self.target_position:
+                object_position = self.target_position
+                detected_object.has_position = object_position
+                self.drone.has_detected_object = detected_object
             
-            if position.has_x == 0 and position.has_y == 50:
+            if current_position.has_x == 0 and current_position.has_y == 50:
                 return "end_simulation", None
-            else:
-                return self.move(grid)
-        else:
-            self.drone.has_detected_object = None
-            return self.move(grid)
-
+        
+        return self.move(grid)
+    
 class MultiAgentSystem:
     def __init__(self):
         self.model = ap.Model()
         self.setup()
         self.grid = self.create_environment()
-    
+        self.target_position = None
+
     def setup(self):
         self.camera_agents = {}
         for i in range(4):
@@ -254,14 +264,22 @@ class MultiAgentSystem:
                         detect_x, detect_y = camera_info['DetectPosition']
                         absolute_x = camera_info['position'][0] + detect_x
                         absolute_y = camera_info['position'][1] + detect_y
+                        self.target_position = (absolute_x, absolute_y)
                         self.drone_agent.set_target_position(absolute_x, absolute_y)
                         logger.info(f"Camera {camera_id} detected object at ({absolute_x}, {absolute_y})")
-        
+
         if drone_data:
-            drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid)
+            logger.info(f"Current target position before drone detection: {self.target_position}")
+            try:
+                drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid, self.target_position)
+                logger.info(f"Drone action: {drone_action}, direction: {drone_direction}")
+            except AttributeError as e:
+                logger.error(f"Error in drone detection: {str(e)}")
+                drone_action, drone_direction = "error", None
         else:
             drone_action, drone_direction = "idle", None
-        
+            logger.info("No drone data received")
+
         return camera_results, drone_action, drone_direction
     
 def main():
