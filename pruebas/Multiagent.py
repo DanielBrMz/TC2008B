@@ -11,10 +11,16 @@ logger = logging.getLogger(__name__)
 onto = get_ontology("file://onto.owl")
 
 with onto:
-    class Camera(Thing):
+    class Agent(Thing):
+        pass
+
+    class Camera(Agent):
         pass
     
-    class Drone(Thing):
+    class Drone(Agent):
+        pass
+    
+    class Guard(Agent):
         pass
     
     class DetectedObject(Thing):
@@ -29,6 +35,9 @@ with onto:
     class Position(Thing):
         pass
     
+    class Message(Thing):
+        pass
+    
     class has_x(FunctionalProperty, DataProperty):
         domain = [Position]
         range = [int]
@@ -38,15 +47,15 @@ with onto:
         range = [int]
     
     class has_position(FunctionalProperty, ObjectProperty):
-        domain = [Camera, Drone, DetectedObject]
+        domain = [Agent, DetectedObject]
         range = [Position]
     
     class has_detected_object(FunctionalProperty, ObjectProperty):
-        domain = [Camera, Drone]
+        domain = [Agent]
         range = [DetectedObject]
     
     class has_action(FunctionalProperty, DataProperty):
-        domain = [Camera, Drone]
+        domain = [Agent]
         range = [str]
     
     class has_path(FunctionalProperty, DataProperty):
@@ -54,22 +63,56 @@ with onto:
         range = [str]
     
     class has_vision_radius(FunctionalProperty, DataProperty):
-        domain = [Camera, Drone]
+        domain = [Agent]
         range = [int]
+    
+    class has_sender(ObjectProperty):
+        domain = [Message]
+        range = [Agent]
+    
+    class has_receiver(ObjectProperty):
+        domain = [Message]
+        range = [Agent]
+    
+    class has_content(DataProperty):
+        domain = [Message]
+        range = [str]
+    
+    class has_environment(DataProperty):
+        domain = [Agent]
+        range = [str]
 
 onto.save()
 
-class CameraAgent(ap.Agent):
+class AgentBase(ap.Agent):
     def setup(self):
-        self.camera = onto.Camera()
-        self.camera_id = self.id
-        self.camera.has_vision_radius = 85
+        self.agent = None
+        self.message_queue = []
+
+    def send_message(self, receiver, content):
+        message = onto.Message()
+        message.has_sender = self.agent
+        message.has_receiver = receiver
+        message.has_content = content
+        receiver.message_queue.append(message)
+        return message
+
+    def receive_messages(self):
+        messages = self.message_queue
+        self.message_queue = []
+        return messages
+
+class CameraAgent(AgentBase):
+    def setup(self):
+        super().setup()
+        self.agent = onto.Camera()
+        self.agent.has_vision_radius = 85
     
     def detect(self, data):
         position = onto.Position()
         position.has_x = data['position'][0]
         position.has_y = data['position'][1]
-        self.camera.has_position = position
+        self.agent.has_position = position
         
         if data['Detect'] > 0:
             detected_object = onto.Fugitive() if data['Detect'] == 2 else onto.Mouse()
@@ -77,74 +120,49 @@ class CameraAgent(ap.Agent):
             object_position.has_x = data['DetectPosition'][0]
             object_position.has_y = data['DetectPosition'][1]
             detected_object.has_position = object_position
-            self.camera.has_detected_object = detected_object
-            self.camera.has_action = "alarm"
-            return "alarm", detected_object
+            self.agent.has_detected_object = detected_object
+            self.agent.has_action = "alarm"
+            return "alarm", self.send_message(onto.Drone, f"Detected object at {data['DetectPosition']}")
         else:
-            self.camera.has_detected_object = None
-            self.camera.has_action = "ignore"
+            self.agent.has_detected_object = None
+            self.agent.has_action = "ignore"
             return "ignore", None
 
-class DroneAgent(ap.Agent):
+class GuardAgent(AgentBase):
     def setup(self):
-        self.drone = onto.Drone()
-        self.position_pool = {}
-        for x in range(100):
-            for y in range(100):
-                position = onto.Position()
-                position.has_x = x
-                position.has_y = y
-                self.position_pool[(x, y)] = position
-        
-        self.drone.has_position = self.position_pool[(0, 50)]
-        self.drone.has_vision_radius = 20
-        self.drone.has_path = ""
-        self.target_position = None
-        self.environment = self.create_environment()
+        super().setup()
+        self.agent = onto.Guard()
+        position = onto.Position()
+        position.has_x = 0
+        position.has_y = 50
+        self.agent.has_position = position
 
-    def create_environment(self):
-        env = np.zeros((100, 100))
-        columns = [
-            (10, 0, 90, 10),   # Column 1 (from top)
-            (30, 10, 100, 10), # Column 2 (from bottom)
-            (60, 10, 100, 10), # Column 3 (from bottom)
-            (80, 0, 90, 10),   # Column 4 (from top)
-        ]
-        for col, start, end, width in columns:
-            env[start:end, col:col+width] = 1
-        return env
+    def process_messages(self):
+        messages = self.receive_messages()
+        for message in messages:
+            if message.has_content == "Target reached":
+                return self.investigate()
+        return self.command_drone()
 
-    def get_position(self, x, y):
-        return self.position_pool.get((x, y))
-    
-    def set_target_position(self, x, y):
-        self.target_position = self.get_position(x, y)
-        logger.info(f"Drone target set to: ({x}, {y})")
-
-    def move(self, grid):
-        current_position = self.drone.has_position
-        
-        if self.drone.has_detected_object:
-            target = self.get_position(0, 50)
-            logger.info("Drone has detected object, returning to start")
-        elif self.target_position:
-            target = self.target_position
-            logger.info(f"Drone moving towards target: ({target.has_x}, {target.has_y})")
+    def investigate(self):
+        # Implement investigation logic
+        if self.fugitive_found():
+            self.agent.has_action = "alarm"
+            return "alarm", None
         else:
-            logger.info("No target set for drone, staying in place")
-            return "stay", None
-        
-        path = self.find_path(current_position, target)
-        if path and len(path) > 1:
-            next_position = path[1]  # First step in the path
-            self.drone.has_position = next_position
-            self.drone.has_path = ",".join(f"{p.has_x},{p.has_y}" for p in path)
-            direction = self.get_direction(current_position, next_position)
-            logger.info(f"Drone moving {direction} to ({next_position.has_x}, {next_position.has_y})")
-            return "move", direction
-        logger.info("No path found or already at target, drone staying in place")
-        return "stay", None
-    
+            return self.command_drone()
+
+    def command_drone(self):
+        # Implement drone command logic
+        command = "move_random"  # For example
+        self.send_message(onto.Drone, command)
+        return "guard", command
+
+    def fugitive_found(self):
+        # Implement fugitive detection logic
+        # For now, let's say there's a 10% chance of finding the fugitive
+        return np.random.random() < 0.1
+
     def find_path(self, start, goal):
         def heuristic(a, b):
             return abs(a.has_x - b.has_x) + abs(a.has_y - b.has_y)
@@ -185,59 +203,32 @@ class DroneAgent(ap.Agent):
         
         logger.warning(f"No path found from ({start.has_x}, {start.has_y}) to ({goal.has_x}, {goal.has_y})")
         return None
-    
-    def get_direction(self, current, next):
-        dx = next.has_x - current.has_x
-        dy = next.has_y - current.has_y
-        if dx == 1:
-            return "right"
-        elif dx == -1:
-            return "left"
-        elif dy == 1:
-            return "down"  # Changed from "up" to "down"
-        elif dy == -1:
-            return "up"  # Changed from "down" to "up"
-        else:
-            return None
-    
-    def detect(self, data, grid, target_position):
-        current_position = self.get_position(data['position'][0], data['position'][1])
-        self.drone.has_position = current_position
-        logger.info(f"Drone current position: ({current_position.has_x}, {current_position.has_y})")
-        
-        if target_position:
-            self.target_position = self.get_position(target_position[0], target_position[1])
-            logger.info(f"Target position updated: ({self.target_position.has_x}, {self.target_position.has_y})")
-        elif self.target_position:
-            logger.info(f"Using existing target position: ({self.target_position.has_x}, {self.target_position.has_y})")
-        else:
-            logger.info("No target position set")
-        
-        if data['Detect'] > 0:
-            detected_object = onto.Fugitive() if data['Detect'] == 2 else onto.Mouse()
-            if self.target_position:
-                object_position = self.target_position
-                detected_object.has_position = object_position
-                self.drone.has_detected_object = detected_object
-            
-            if current_position.has_x == 0 and current_position.has_y == 50:
-                return "end_simulation", None
-        
-        return self.move(grid)
-    
-class MultiAgentSystem:
-    def __init__(self):
-        self.model = ap.Model()
-        self.setup()
-        self.grid = self.create_environment()
-        self.target_position = None
 
+    def get_position(self, x, y):
+        return self.position_pool.get((x, y))
+
+    def control_drone(self, drone_data):
+        # Control the drone using the same logic as DroneAgent
+        return self.drone_agent.detect(drone_data)
+
+class DroneAgent(AgentBase):
     def setup(self):
-        self.camera_agents = {}
-        for i in range(4):
-            agent = CameraAgent(self.model)
-            self.camera_agents[i] = agent
-        self.drone_agent = DroneAgent(self.model)
+        super().setup()
+        self.agent = onto.Drone()
+        self.agent.has_vision_radius = 20
+        self.agent.has_path = ""
+        self.position_pool = {}
+        for x in range(100):
+            for y in range(100):
+                position = onto.Position()
+                position.has_x = x
+                position.has_y = y
+                self.position_pool[(x, y)] = position
+        
+        self.agent.has_position = self.position_pool[(0, 50)]
+        self.target_position = self.get_position(0, 50)
+        self.environment = self.create_environment()
+        self.agent.has_environment.append(str(self.environment.tolist()))
 
     def create_environment(self):
         env = np.zeros((100, 100))
@@ -250,41 +241,168 @@ class MultiAgentSystem:
         for col, start, end, width in columns:
             env[start:end, col:col+width] = 1
         return env
-    
-    def process_detection(self, camera_data, drone_data):
-        camera_results = []
-        if camera_data:
-            for camera_info in camera_data:
-                camera_id = camera_info['id']
-                if camera_id in self.camera_agents:
-                    action, detected_object = self.camera_agents[camera_id].detect(camera_info)
-                    camera_results.append({"id": camera_id, "action": action})
-                    if detected_object:
-                        # Set the target position for the drone
-                        detect_x, detect_y = camera_info['DetectPosition']
-                        absolute_x = camera_info['position'][0] + detect_x
-                        absolute_y = camera_info['position'][1] + detect_y
-                        self.target_position = (absolute_x, absolute_y)
-                        self.drone_agent.set_target_position(absolute_x, absolute_y)
-                        logger.info(f"Camera {camera_id} detected object at ({absolute_x}, {absolute_y})")
 
-        if drone_data:
-            logger.info(f"Current target position before drone detection: {self.target_position}")
-            try:
-                drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid, self.target_position)
-                logger.info(f"Drone action: {drone_action}, direction: {drone_direction}")
-            except AttributeError as e:
-                logger.error(f"Error in drone detection: {str(e)}")
-                drone_action, drone_direction = "error", None
+    def get_position(self, x, y):
+        return self.position_pool.get((x, y))
+
+    def set_target_position(self, x, y):
+        self.target_position = self.get_position(x, y)
+        logger.info(f"Drone target set to: ({x}, {y})")
+
+    def move(self):
+        current_position = self.agent.has_position
+        
+        if self.agent.has_detected_object:
+            target = self.get_position(0, 50)
+            logger.info("Drone has detected object, returning to start")
+        elif self.target_position:
+            target = self.target_position
+            logger.info(f"Drone moving towards target: ({target.has_x}, {target.has_y})")
+        else:
+            logger.info("No target set for drone, staying in place")
+            return "stay", None
+        
+        path = self.find_path(current_position, target)
+        if path and len(path) > 1:
+            next_position = path[1]  # First step in the path
+            self.agent.has_position = next_position
+            self.agent.has_path = ",".join(f"{p.has_x},{p.has_y}" for p in path)
+            direction = self.get_direction(current_position, next_position)
+            logger.info(f"Drone moving {direction} to ({next_position.has_x}, {next_position.has_y})")
+            return "move", direction
+        logger.info("No path found or already at target, drone staying in place")
+        return "stay", None
+
+    def find_path(self, start, goal):
+        def heuristic(a, b):
+            return abs(a.has_x - b.has_x) + abs(a.has_y - b.has_y)
+        
+        def get_neighbors(position):
+            x, y = position.has_x, position.has_y
+            neighbors = []
+            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < 100 and 0 <= ny < 100 and self.environment[ny, nx] == 0:  # Note the [y, x] indexing
+                    neighbors.append(self.get_position(nx, ny))
+            return neighbors
+        
+        open_set = [start]
+        came_from = {}
+        g_score = {start: 0}
+        f_score = {start: heuristic(start, goal)}
+        
+        while open_set:
+            current = min(open_set, key=lambda p: f_score[p])
+            if current.has_x == goal.has_x and current.has_y == goal.has_y:
+                path = []
+                while current in came_from:
+                    path.append(current)
+                    current = came_from[current]
+                path.append(start)
+                return list(reversed(path))
+            
+            open_set.remove(current)
+            for neighbor in get_neighbors(current):
+                tentative_g_score = g_score[current] + 1
+                if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g_score
+                    f_score[neighbor] = g_score[neighbor] + heuristic(neighbor, goal)
+                    if neighbor not in open_set:
+                        open_set.append(neighbor)
+        
+        logger.warning(f"No path found from ({start.has_x}, {start.has_y}) to ({goal.has_x}, {goal.has_y})")
+        return None
+
+    def get_direction(self, current, next):
+        dx = next.has_x - current.has_x
+        dy = next.has_y - current.has_y
+        if dx == 1:
+            return "right"
+        elif dx == -1:
+            return "left"
+        elif dy == 1:
+            return "down"
+        elif dy == -1:
+            return "up"
+        else:
+            return None
+
+    def detect(self, data):
+        messages = self.receive_messages()
+        for message in messages:
+            if isinstance(message.has_sender, onto.Camera):
+                # Process detection message from camera
+                target = eval(message.has_content.split("at ")[1])
+                self.set_target_position(target[0], target[1])
+            elif isinstance(message.has_sender, onto.Guard):
+                # Process command from guard
+                return self.execute_guard_command(message.has_content)
+
+        current_position = self.get_position(data['position'][0], data['position'][1])
+        self.agent.has_position = current_position
+    
+class MultiAgentSystem:
+    def __init__(self):
+        self.model = ap.Model()
+        self.setup()
+        self.grid = self.create_environment()
+        self.simulation_phase = "camera"
+
+    def setup(self):
+        self.camera_agents = {}
+        for i in range(4):
+            agent = CameraAgent(self.model)
+            self.camera_agents[i] = agent
+        self.drone_agent = DroneAgent(self.model)
+        self.guard_agent = GuardAgent(self.model)
+
+    def create_environment(self):
+        return self.drone_agent.environment
+
+    def process_detection(self, camera_data, drone_data):
+        if self.simulation_phase == "camera":
+            return self.process_camera_phase(camera_data)
+        elif self.simulation_phase == "drone":
+            return self.process_drone_phase(drone_data)
+        elif self.simulation_phase == "guard":
+            return self.process_guard_phase(drone_data)
+
+    def process_camera_phase(self, camera_data):
+        camera_results = []
+        for camera_info in camera_data:
+            camera_id = camera_info['id']
+            if camera_id in self.camera_agents:
+                action, message = self.camera_agents[camera_id].detect(camera_info)
+                camera_results.append({"id": camera_id, "action": action})
+                if action == "alarm":
+                    self.simulation_phase = "drone"
+        
+        if self.simulation_phase == "drone":
+            drone_action, drone_direction = self.drone_agent.detect({"position": [0, 50], "Detect": 0})
         else:
             drone_action, drone_direction = "idle", None
-            logger.info("No drone data received")
 
-        return camera_results, drone_action, drone_direction
-    
+        return camera_results, {"action": drone_action, "direction": drone_direction}
+
+    def process_drone_phase(self, drone_data):
+        drone_action, drone_direction = self.drone_agent.detect(drone_data)
+        if drone_action == "end_drone_phase":
+            self.simulation_phase = "guard"
+            guard_action, guard_command = self.guard_agent.process_messages()
+            return [], {"action": "guard", "command": guard_command}
+        return [], {"action": drone_action, "direction": drone_direction}
+
+    def process_guard_phase(self, drone_data):
+        guard_action, guard_command = self.guard_agent.process_messages()
+        if guard_action == "alarm":
+            return [], {"action": "end_simulation"}
+        else:
+            drone_action, drone_direction = self.drone_agent.detect(drone_data)
+            return [], {"action": guard_action, "direction": drone_direction}
+
 def main():
     mas = MultiAgentSystem()
-    # Add test code here if needed
 
 if __name__ == "__main__":
     main()
