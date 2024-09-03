@@ -9,7 +9,7 @@
 2. Daniel Alfredo Barreras Meraz A01254805
 3. Angela Estefania Aguilar Medina A01637703
 4. Gael Venegas Gomez A01642913
-5. Julian Espinoza Valenzuela A01254679
+5. Julian Enrique Espinoza Valenzuela A01254679
 
 ## Actividad Integradora 1
 
