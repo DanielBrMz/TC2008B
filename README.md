@@ -9,10 +9,14 @@
 2. Daniel Alfredo Barreras Meraz A01254805
 3. Angela Estefania Aguilar Medina A01637703
 4. Gael Venegas Gomez A01642913
+5. Julian Espinoza Valenzuela A01254679
 
 ## Actividad Integradora 1
 
 En esta actividad se desarrolló una simulación basada en agentes que consiste en robots dentro de un almacén que deben de recoger cajas en su ambiente y llevarlas a sus estaciones de carga siguiendo algunas condiciones como si la estación está llena y cuál es la estación más cercana.
+
+## Actividad Integradora Entrega Intermedia
+En esta entrega se realizó un avance significativo hacia la evidencia final. El progreso se centró en el desarrollo de una simulación orientada a la vigilancia de un entorno específico. En esta simulación se incluyeron agentes como cámaras, drones y personal de seguridad, cuyo objetivo es interactuar entre sí para mantener vigilado el entorno en cuestión. Para esta entrega, se integraron en la rama principal del repositorio los avances correspondientes a Unity, así como las mejoras relacionadas con el servidor desarrollado en Python y AgentPy. Finalmente, se añadió la documentación requerida para el entregable intermedio.
 
 ## Instalacion (WIP)
 - Dirigite a la seccion de [releases](#)
