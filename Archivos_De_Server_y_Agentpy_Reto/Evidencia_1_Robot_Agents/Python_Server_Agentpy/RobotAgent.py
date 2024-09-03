@@ -90,6 +90,7 @@ class RobotAgent(ap.Agent):
             "movements": self.movements
         }
 
+    #POR QUE STORED_STATE ESTA SETEADO COMO NONE?
     def update_state(self, perception_json, stored_state=None):
         print(f"Updating state with perception: {perception_json}")
         perception = json.loads(perception_json)
@@ -225,6 +226,7 @@ class ObjectStackingModel(ap.Model):
             "position": perception
         })
 
+    #QUE ES LO QUE PASA AQUI? EL UPDATE_ENVIRONMENT ES NECESARIO?======================================================================================================
     def update_environment(self, robot, action):
         current_pos = self.grid.positions[robot]
 
@@ -293,7 +295,8 @@ class ObjectStackingModel(ap.Model):
 
         if self.check_end_condition():
             self.stop()
-
+            
+    #COMO FUNCIONA ESTO PAIII? DE DONDE SE SACA LA INFO DE LAS STACKS?==================================================================================
     def check_end_condition(self):
         all_stacks_valid = all(1 <= stack_size <= 5 for stack_size in self.stacks.values())
         all_objects_stacked = sum(self.stacks.values()) == self.num_objects
