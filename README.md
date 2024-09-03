@@ -1,7 +1,14 @@
 # Equipo TC2008B
 
+> [!WARNING]
+> 2/9/2024
+> Los avancecs de Unity para la entrega intermedia pueden observarse en la escena `BaseModels` en la carpeta `Assets\Scenes`
+
 ### Integrantes
-1. 
+1. Yair Salvador Beltran Rios A01254673
+2. Daniel Alfredo Barreras Meraz A01254805
+3. Angela Estefania Aguilar Medina A01637703
+4. Gael Venegas Gomez A01642913
 
 ## Actividad Integradora 1
 
@@ -14,6 +21,7 @@ En esta actividad se desarrolló una simulación basada en agentes que consiste 
 
 ## Keybinds
 - `V` - Visualizar/Ocultar los sensores de los agentes
+- `T` - Visualizar tiles 
 
 ## Build
 - Clona el repositorio en tu dispositivo
@@ -41,7 +49,7 @@ pip install -r requirements.txt
 ```bash
 python Evidencia1/Server/Server.py
 ```
-> [!INFO]
+> [!NOTE]
 > Si estas corriendo el server en la misma computadora que el proyecto de Unity, la url por defecto sera la correcta
 
 ### Unity
