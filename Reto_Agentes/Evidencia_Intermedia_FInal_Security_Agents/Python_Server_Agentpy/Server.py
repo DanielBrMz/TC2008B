@@ -30,61 +30,112 @@ def before_request():
 
 
 @app.route('/gmes', methods=['POST'])
-def robot_actions():
+def security_actions():
     try:
         data = request.json
         app.logger.debug(f"Received data: {data}")
 
-        if not isinstance(data, list):
-            return jsonify({"error": "Invalid input. Expected an array of security perceptions."}), 400
+        if not isinstance(data, dict):
+            return jsonify({"error": "Invalid input. Expected a dictionary of security perceptions."}), 400
 
         actions = []
-
-        for security_perception in data:
-            if 'id' not in security_perception or 'position' not in security_perception:
-                return jsonify({"error": "Invalid input. Each robot perception must have 'id' and 'position'."}), 400
-
-            robot_id = security_perception['id']
-            perception = security_perception['position']
-
-            robot = next((r for r in app.model.robots if r.onto_robot.id == robot_id), None)
-            if robot is None:
-                app.logger.error(f"Robot with id {robot_id} not found.")
-                continue
-
+        
+        if data["agent"] == "Camera":
             
-            #======================================================
-            stored_state = app.robot_states.get(robot_id)
-            #======================================================
-            app.logger.debug(f"Processing robot: {robot_id}, Stored state: {stored_state}")
+            cameras = data["Cameras"]
+            for cam_security_per in cameras:
+                if 'id' not in cam_security_per or 'Detectpos' not in cam_security_per:
+                    return jsonify({"error": "Invalid input. Each camera perception must have 'id' and 'Detectpos'."}), 400
 
-            perception_json = json.dumps({
-                "id": robot_id,
-                "position": perception
-            })
-
-            try:
-                action = robot.step(perception_json, stored_state)
-                app.logger.debug(f"Action taken by robot {robot_id}: {action}")
+                camera_id = cam_security_per['id']
+                perception = cam_security_per['Detect']
+                per_ubi = cam_security_per['Detectpos']
                 
-                action_parts = action.split('_')
-                action_type = action_parts[0]
-                direction = action_parts[1] if len(action_parts) > 1 else None
+                if perception == 0:
+                    continue
 
-                actions.append({
-                    "id": robot_id,
-                    "action": action_type.capitalize()[0],
-                    "direction": direction
+                camera_intance = next((r for r in app.model.cams if r.onto_camera.has_id == camera_id), None)
+                if camera_intance is None:
+                    app.logger.error(f"Camera with id {camera_id} not found.")
+                    continue
+                
+                drons = data["Dron"]
+                dron_security_per = drons[0]
+                
+                dron_id = dron_security_per['id']
+                dron_intance = next((r for r in app.model.drons if r.onto_Dron.has_id == dron_id), None)
+                if dron_intance is None:
+                    app.logger.error(f"Dron with id {dron_id} not found.")
+                    continue
+
+                
+                #======================================================
+                #stored_state = app.robot_states.get(robot_id)
+                #======================================================
+                #app.logger.debug(f"Processing robot: {robot_id}, Stored state: {stored_state}")
+
+                perception_json = json.dumps({
+                    "id": camera_id,
+                    "per": perception,
+                    "per_ubi": per_ubi  
                 })
 
-                app.model.update_environment(robot, action)
+                try:
+                    camera_intance.step(perception_json)
+                    action = dron_intance.step(perception_json)
+                    app.logger.debug(f"Action taken by robot {camera_id}: {action}")
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    action_parts = action.split('_')
+                    action_type = action_parts[0]
+                    direction = action_parts[1] if len(action_parts) > 1 else None
 
-                app.robot_states[robot_id] = robot.get_state()
-                app.logger.debug(f"Updated state for robot {robot_id}: {app.robot_states[robot_id]}")
+                    actions.append({
+                        "id": robot_id,
+                        "action": action_type.capitalize()[0],
+                        "direction": direction
+                    })
 
-            except Exception as e:
-                app.logger.error(f"Error in robot.step() for robot {robot_id}: {str(e)}")
-                app.logger.error(traceback.format_exc())
+                    app.model.update_environment(robot, action)
+
+                    app.robot_states[robot_id] = robot.get_state()
+                    app.logger.debug(f"Updated state for robot {robot_id}: {app.robot_states[robot_id]}")
+
+                except Exception as e:
+                    app.logger.error(f"Error in robot.step() for robot {robot_id}: {str(e)}")
+                    app.logger.error(traceback.format_exc())
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    
 
         app.model.current_step += 1
 

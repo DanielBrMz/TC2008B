@@ -36,6 +36,16 @@ with onto:
     class has_action(DataProperty, FunctionalProperty):
         domain = [Camera, Dron, Security_P]
         range = [int] # Property acting as a variable to store the number of times that a Camera, Dron or the Security personal make an alert of an intruder.
+        
+    class has_perception(DataProperty, FunctionalProperty):
+        domain = [Camera, Dron, Security_P]
+        range = [int] # Property acting as a variable to store the number of times that a Camera, Dron or the Security personal make an alert of an intruder.
+        
+    class has_per_ubi(DataProperty, FunctionalProperty):
+        domain = [Camera, Dron, Security_P]
+        range = [str] # Property acting as a variable to store the number of times that a Camera, Dron or the Security personal make an alert of an intruder.
+        
+    
     
 
 
@@ -58,6 +68,29 @@ class CamAgent(ap.Agent):
             "alert_sensor": self.onto_camera.has_status,
             "movements": self.onto_camera.has_action
         }
+        
+    def perceive_and_act(self):
+        print(f"Perceiving and acting camera.")
+        
+        
+    def update_state(self, perception_json):
+        print(f"Updating state with perception: {perception_json}")
+        perception = json.loads(perception_json)
+        #self.onto_camera.has_id = perception["id"]    UNNECESSARY
+        self.onto_camera.has_perception = perception["per"]
+        self.onto_camera.has_per_ubi = perception["per_ubi"]
+        print(f"State updated. Camera ID: {self.onto_camera.has_id}, Seeing: {self.onto_camera.has_perception}, In a distance from the Dron: {self.onto_camera.has_per_ubi}")
+        self.perceive_and_act()
+        
+    def step(self, perception_json):
+        print(f"Step method called with perception: {perception_json}")
+        self.update_state(perception_json)
+        
+        
+    
+    
+    
+    
         
 class DronAgent(ap.Agent):
     def setup(self):
