@@ -15,18 +15,18 @@ with onto:
         domain = [Security_P]
         range = [str] # Property acting as the decision of the security person. 
         # Status = "Normal" or "Alert".
+        
+    #===================DRON ONTLOGY SECTION===================
+    class Dron(Thing):
+        pass
     
     #===================CAMERA ONTLOGY SECTION===================
     class Camera(Thing):
         pass
 
     class has_id(DataProperty, FunctionalProperty):
-        domain = [Camera]
-        range = [int] # Property acting as a variable to store the id of each camera instance.
-        
-    #===================DRON ONTLOGY SECTION===================
-    class Dron(Thing):
-        pass
+        domain = [Camera, Dron, Security_P]
+        range = [int] # Property acting as a variable to store the id of each Camera, Dron or the Security personal instance.
      
     #===================SECURITY PERSONAL, CAMERA AND DRON ONTLOGY SECTION (PROPERTIES IN COMMON)===================
     class has_status(DataProperty, FunctionalProperty):
