@@ -5,11 +5,11 @@
 > Los avancecs de Unity para la entrega intermedia pueden observarse en la escena `BaseModels` en la carpeta `Assets\Scenes`
 
 ### Integrantes
-1. Yair Salvador Beltran Rios A01254673
-2. Daniel Alfredo Barreras Meraz A01254805
-3. Angela Estefania Aguilar Medina A01637703
-4. Gael Venegas Gomez A01642913
-5. Julian Enrique Espinoza Valenzuela A01254679
+1. Yair Salvador Beltran Rios `A01254673`
+2. Daniel Alfredo Barreras Meraz `A01254805`
+3. Angela Estefania Aguilar Medina `A01637703`
+4. Gael Venegas Gomez `A01642913`
+5. Julian Enrique Espinoza Valenzuela `A01254679`
 
 ## Actividad Integradora 1
 
