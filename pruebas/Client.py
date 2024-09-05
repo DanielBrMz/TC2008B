@@ -5,6 +5,10 @@ import requests
 import json
 import tkinter as tk
 from tkinter import ttk
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Grid:
     def __init__(self, rows, cols):
@@ -50,15 +54,14 @@ class Grid:
             self.grid[camara_row:camara_row+camara_size, camara_col:camara_col+camara_size] = 3
             self.camera_positions.append((camara_row, camara_col))
 
-        # Marcar el pasillo del medio como no válido para objetos
-        self.grid[:, 49:51] = 4
-
         # Agregar el dron
         self.place_drone(self.drone_pos[0], self.drone_pos[1])
+
     
     def place_drone(self, row, col):
         self.grid[row:row+2, col:col+2] = 5  # 5 representa al dron
         self.drone_pos = (row, col)
+        logger.info(f"Drone placed at {self.drone_pos}")
 
     def move_drone(self, direction):
         row, col = self.drone_pos
@@ -71,12 +74,21 @@ class Grid:
         elif direction == "right" and col < self.cols - 2:
             new_pos = (row, col + 1)
         else:
+            logger.warning(f"Invalid move direction: {direction}")
             return
 
-        # Verificar si la nueva posición es válida (no hay obstáculos)
-        if np.all(self.grid[new_pos[0]:new_pos[0]+2, new_pos[1]:new_pos[1]+2] == 0):
-            self.grid[self.drone_pos[0]:self.drone_pos[0]+2, self.drone_pos[1]:self.drone_pos[1]+2] = 0
-            self.place_drone(new_pos[0], new_pos[1])
+        # Check if the new position is within the grid bounds
+        if 0 <= new_pos[0] < self.rows - 1 and 0 <= new_pos[1] < self.cols - 1:
+            # Check if there's no obstacle (value 1) in the new position
+            if np.all(self.grid[new_pos[0]:new_pos[0]+2, new_pos[1]:new_pos[1]+2] != 1):
+                self.grid[self.drone_pos[0]:self.drone_pos[0]+2, self.drone_pos[1]:self.drone_pos[1]+2] = 0
+                self.place_drone(new_pos[0], new_pos[1])
+                logger.info(f"Drone moved to {new_pos}")
+            else:
+                logger.warning(f"Cannot move drone to {new_pos}, obstacle present")
+        else:
+            logger.warning(f"Cannot move drone to {new_pos}, out of bounds")
+
 
     def is_valid_position(self, row, col):
         # Verificar si todas las celdas necesarias para el objeto están disponibles
@@ -275,7 +287,7 @@ class Application(tk.Tk):
                 "Drone": drone_detection
             }
         
-        print(f"Sending data to server: {json.dumps(data, indent=2)}")
+        logger.info(f"Sending data to server: {json.dumps(data, indent=2)}")
         
         try:
             response = requests.post('http://localhost:5000/detect', json=data, timeout=0.1)
@@ -289,6 +301,7 @@ class Application(tk.Tk):
                         self.status_labels[i].config(foreground="red")
                         self.grid.last_detected_position = cam.get('DetectPosition')
                         self.simulation_phase = "drone"  # Switch to drone phase
+                        logger.info(f"Switching to drone phase. Target: {self.grid.last_detected_position}")
                     else:
                         self.status_labels[i].config(foreground="black")
             
@@ -298,14 +311,18 @@ class Application(tk.Tk):
                 self.drone_status_label.config(text=f"Drone: {drone_action} {drone_direction or ''}")
                 
                 if drone_action == "move":
+                    logger.info(f"Moving drone {drone_direction}")
                     self.grid.move_drone(drone_direction)
                 elif drone_action == "end_simulation":
                     self.after_cancel(self.update_id)
                     self.drone_status_label.config(text="Drone: Simulation Ended", foreground="green")
+                    logger.info("Simulation ended")
                     return
             
+            logger.info(f"Drone position after update: {self.grid.drone_pos}")
+            
         except requests.exceptions.RequestException as e:
-            print(f"Error connecting to server: {e}")
+            logger.error(f"Error connecting to server: {e}")
             for label in self.status_labels:
                 label.config(text="Status: Server connection error", foreground="orange")
             self.drone_status_label.config(text="Drone: Server connection error", foreground="orange")
