@@ -122,7 +122,7 @@ class Grid:
         object_row, object_col = self.object_pos
         for camera_pos in self.camera_positions:
             camera_row, camera_col = camera_pos
-            if self.is_visible(camera_row, camera_col, object_row, object_col):
+            if self.is_visible(camera_row, camera_col, object_row, object_col, self.vision_radius):
                 relative_pos = (object_row - camera_row, object_col - camera_col)
                 detections.append((1, relative_pos))
             else:
@@ -169,7 +169,7 @@ class Grid:
         for camera_pos in self.camera_positions:
             for i in range(self.rows):
                 for j in range(self.cols):
-                    if self.is_visible(camera_pos[0], camera_pos[1], i, j):
+                    if self.is_visible(camera_pos[0], camera_pos[1], i, j, self.vision_radius):
                         mask[i, j] = 1
         return mask
 
@@ -197,6 +197,8 @@ class Application(tk.Tk):
 
         self.drone_status_label = ttk.Label(self.status_frame, text="Drone: Idle", font=("Arial", 12))
         self.drone_status_label.pack(pady=2)
+
+        self.simulation_phase = "camera"
 
         self.setup_plot()
         self.update_visualization()
@@ -257,7 +259,7 @@ class Application(tk.Tk):
         camera_detections = self.grid.detect_object()
         drone_detection = self.detect_drone()
         
-        if self.grid.last_detected_position is None:
+        if self.simulation_phase == "camera":
             data = {
                 "Camera": [
                     {
@@ -268,7 +270,7 @@ class Application(tk.Tk):
                     } for i, (pos, detection) in enumerate(zip(self.grid.camera_positions, camera_detections))
                 ]
             }
-        else:
+        else:  # drone phase
             data = {
                 "Drone": drone_detection
             }
@@ -286,13 +288,14 @@ class Application(tk.Tk):
                     if cam['action'] == "alarm":
                         self.status_labels[i].config(foreground="red")
                         self.grid.last_detected_position = cam.get('DetectPosition')
+                        self.simulation_phase = "drone"  # Switch to drone phase
                     else:
                         self.status_labels[i].config(foreground="black")
             
             if 'Drone' in result:
                 drone_action = result['Drone']['action']
-                drone_direction = result['Drone']['direction']
-                self.drone_status_label.config(text=f"Drone: {drone_action} {drone_direction}")
+                drone_direction = result['Drone'].get('direction')
+                self.drone_status_label.config(text=f"Drone: {drone_action} {drone_direction or ''}")
                 
                 if drone_action == "move":
                     self.grid.move_drone(drone_direction)
@@ -308,21 +311,20 @@ class Application(tk.Tk):
             self.drone_status_label.config(text="Drone: Server connection error", foreground="orange")
 
         # Lógica para colocar o remover objeto
-        if self.grid.object_pos is None and self.grid.last_detected_position is None:
-            # Intentar colocar un nuevo objeto
-            object_type = 2  # Fugitivo
-            attempts = 0
-            while attempts < 100:  # Limitar intentos para evitar bucle infinito
-                object_row = np.random.randint(0, self.grid.rows - self.grid.object_size + 1)
-                object_col = np.random.randint(0, self.grid.cols - self.grid.object_size + 1)
-                if object_col < 40 or object_col >= 60:  # Evitar columnas 40-60
-                    if self.grid.is_valid_position(object_row, object_col):
-                        self.grid.place_object(object_row, object_col, object_type)
-                        break
-                attempts += 1
-        elif self.grid.object_pos is not None and self.grid.last_detected_position is None:
-            # Posibilidad de remover el objeto existente
-            if np.random.random() < 0.1:  # 10% de probabilidad de remover
+        if self.simulation_phase == "camera":
+            if self.grid.object_pos is None:
+                # Intentar colocar un nuevo objeto
+                object_type = 2  # Fugitivo
+                attempts = 0
+                while attempts < 100:  # Limitar intentos para evitar bucle infinito
+                    object_row = np.random.randint(0, self.grid.rows - self.grid.object_size + 1)
+                    object_col = np.random.randint(0, self.grid.cols - self.grid.object_size + 1)
+                    if object_col < 40 or object_col >= 60:  # Evitar columnas 40-60
+                        if self.grid.is_valid_position(object_row, object_col):
+                            self.grid.place_object(object_row, object_col, object_type)
+                            break
+                    attempts += 1
+            elif np.random.random() < 0.1:  # 10% de probabilidad de remover
                 self.grid.remove_object()
 
         self.update_id = self.after(200, self.update_visualization)  # Actualizar cada 0.2 segundos

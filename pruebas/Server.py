@@ -1,8 +1,14 @@
 from flask import Flask, request, jsonify
 from Multiagent import MultiAgentSystem
+import logging
+import json
 
 app = Flask(__name__)
 mas = MultiAgentSystem()
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 # Variable global para controlar la fase de la simulación
 simulation_phase = "camera"
@@ -12,9 +18,12 @@ def detect():
     global simulation_phase
     data = request.json
 
+    logger.info(f"Received data: {json.dumps(data, indent=2)}")
+
     try:
         if simulation_phase == "camera":
             if 'Camera' not in data:
+                logger.error("Invalid data format for camera phase")
                 return jsonify({"error": "Invalid data format for camera phase"}), 400
             
             camera_data = data['Camera']
@@ -23,6 +32,7 @@ def detect():
             # Chequeamos si alguna cámara detectó algo
             if any(result['action'] == 'alarm' for result in camera_results):
                 simulation_phase = "drone"
+                logger.info("Switching to drone phase")
             
             response = {
                 "Camera": camera_results,
@@ -34,6 +44,7 @@ def detect():
         
         elif simulation_phase == "drone":
             if 'Drone' not in data:
+                logger.error("Invalid data format for drone phase")
                 return jsonify({"error": "Invalid data format for drone phase"}), 400
             
             drone_data = data['Drone']
@@ -47,17 +58,21 @@ def detect():
             }
         
         else:
+            logger.error(f"Invalid simulation phase: {simulation_phase}")
             return jsonify({"error": "Invalid simulation phase"}), 500
 
+        logger.info(f"Sending response: {json.dumps(response, indent=2)}")
         return jsonify(response)
 
     except Exception as e:
-        app.logger.error(f"An error occurred: {str(e)}")
+        logger.error(f"An error occurred: {str(e)}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 @app.errorhandler(404)
 def not_found(error):
+    logger.error(f"404 error: {str(error)}")
     return jsonify({"error": "Not found"}), 404
 
 if __name__ == '__main__':
+    logger.info("Starting server...")
     app.run(debug=True, port=5000)
