@@ -16,7 +16,6 @@ def init_model_and_states():
     return model, robot_states
 
 
-#COMO ESTA EL ROLLO AQUI, EN DONDE SE GUARDA LA INFO EN QUE MODELO?==================================================================
 @app.before_request
 def before_request():
     if not hasattr(app, 'model') or not hasattr(app, 'robot_states'):
@@ -119,10 +118,7 @@ def robot_actions():
                 app.logger.error(f"Robot with id {robot_id} not found.")
                 continue
 
-            #HACIA DONDE ESTA HACIENDO ESTA REQUEST DE INFO
-            #======================================================
             stored_state = app.robot_states.get(robot_id)
-            #======================================================
             app.logger.debug(f"Processing robot: {robot_id}, Stored state: {stored_state}")
 
             perception_json = json.dumps({
