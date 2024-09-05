@@ -15,6 +15,9 @@ class Grid:
         self.object_pos = None
         self.vision_radius = 85
         self.object_size = 3  # Tamaño del objeto (3x3)
+        self.drone_pos = (0, 50)  # Posición inicial del dron
+        self.drone_vision_radius = 20
+        self.last_detected_position = None
 
         self.setup_grid()
 
@@ -50,6 +53,31 @@ class Grid:
         # Marcar el pasillo del medio como no válido para objetos
         self.grid[:, 49:51] = 4
 
+        # Agregar el dron
+        self.place_drone(self.drone_pos[0], self.drone_pos[1])
+    
+    def place_drone(self, row, col):
+        self.grid[row:row+2, col:col+2] = 5  # 5 representa al dron
+        self.drone_pos = (row, col)
+
+    def move_drone(self, direction):
+        row, col = self.drone_pos
+        if direction == "up" and row > 0:
+            new_pos = (row - 1, col)
+        elif direction == "down" and row < self.rows - 2:
+            new_pos = (row + 1, col)
+        elif direction == "left" and col > 0:
+            new_pos = (row, col - 1)
+        elif direction == "right" and col < self.cols - 2:
+            new_pos = (row, col + 1)
+        else:
+            return
+
+        # Verificar si la nueva posición es válida (no hay obstáculos)
+        if np.all(self.grid[new_pos[0]:new_pos[0]+2, new_pos[1]:new_pos[1]+2] == 0):
+            self.grid[self.drone_pos[0]:self.drone_pos[0]+2, self.drone_pos[1]:self.drone_pos[1]+2] = 0
+            self.place_drone(new_pos[0], new_pos[1])
+
     def is_valid_position(self, row, col):
         # Verificar si todas las celdas necesarias para el objeto están disponibles
         for i in range(self.object_size):
@@ -59,6 +87,15 @@ class Grid:
                 if self.grid[row + i, col + j] != 0:
                     return False
         return True
+
+    def get_drone_vision_mask(self):
+        mask = np.zeros((self.rows, self.cols))
+        row, col = self.drone_pos
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if self.is_visible(row, col, i, j, self.drone_vision_radius):
+                    mask[i, j] = 1
+        return mask
 
     def place_object(self, row, col, object_type):
         if self.is_valid_position(row, col):
@@ -93,33 +130,37 @@ class Grid:
 
         return detections
 
-    def is_visible(self, camera_row, camera_col, object_row, object_col):
-        distance = np.sqrt((camera_row - object_row)**2 + (camera_col - object_col)**2)
-        if distance > self.vision_radius:
+    def is_visible(self, start_row, start_col, end_row, end_col, vision_radius):
+        # Primero, verificamos si el punto final está dentro del radio de visión
+        if (end_row - start_row)**2 + (end_col - start_col)**2 > vision_radius**2:
             return False
 
-        # Comprobación de línea de visión
-        x0, y0 = camera_row, camera_col
-        x1, y1 = object_row, object_col
-        dx = abs(x1 - x0)
-        dy = abs(y1 - y0)
-        x, y = x0, y0
+        # Implementación del algoritmo de Bresenham para trazar una línea
+        dx = abs(end_col - start_col)
+        dy = abs(end_row - start_row)
+        x, y = start_col, start_row
         n = 1 + dx + dy
-        x_inc = 1 if x1 > x0 else -1
-        y_inc = 1 if y1 > y0 else -1
+        x_inc = 1 if end_col > start_col else -1
+        y_inc = 1 if end_row > start_row else -1
         error = dx - dy
         dx *= 2
         dy *= 2
 
         for _ in range(n):
-            if self.grid[int(x), int(y)] == 1:  # Solo consideramos las columnas como obstáculos
+            # Verificamos si la celda actual es un obstáculo
+            if self.grid[int(y), int(x)] == 1:  # Asumimos que 1 representa un obstáculo
                 return False
+            
             if error > 0:
                 x += x_inc
                 error -= dy
             else:
                 y += y_inc
                 error += dx
+
+            # Si llegamos al punto final sin encontrar obstáculos, es visible
+            if x == end_col and y == end_row:
+                return True
 
         return True
 
@@ -154,34 +195,40 @@ class Application(tk.Tk):
             label.pack(pady=2)
             self.status_labels.append(label)
 
+        self.drone_status_label = ttk.Label(self.status_frame, text="Drone: Idle", font=("Arial", 12))
+        self.drone_status_label.pack(pady=2)
+
         self.setup_plot()
         self.update_visualization()
 
     def setup_plot(self):
-        # Crear un nuevo colormap personalizado
-        cmap = plt.cm.colors.ListedColormap(['white', 'gray', 'green', 'red', 'yellow'])
-        bounds = [0, 0.5, 1.5, 2.5, 3.5, 4.5]
+        cmap = plt.cm.colors.ListedColormap(['white', 'gray', 'green', 'red', 'yellow', 'purple'])
+        bounds = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
         norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
 
         self.im = self.ax.imshow(self.grid.grid, cmap=cmap, norm=norm)
-        self.ax.set_title('Unity en Python', fontsize=16)
-        self.colorbar = self.figure.colorbar(self.im, boundaries=bounds, ticks=[0, 1, 2, 3, 4])
-        self.colorbar.set_ticklabels(['Empty', 'Wall', 'Fugitive', 'Camera', 'Central'])
+        self.ax.set_title('Surveillance System Simulation', fontsize=16)
+        self.colorbar = self.figure.colorbar(self.im, boundaries=bounds, ticks=[0, 1, 2, 3, 4, 5])
+        self.colorbar.set_ticklabels(['Empty', 'Wall', 'Fugitive', 'Camera', 'Central', 'Drone'])
 
         # Create text objects for each cell
         self.cell_texts = [[self.ax.text(j, i, '', ha='center', va='center', fontweight='bold', fontsize=6)             
                             for j in range(self.grid.cols)] 
                            for i in range(self.grid.rows)]
 
-        # Create vision mask
-        self.vision_mask = self.ax.imshow(self.grid.get_vision_mask(), alpha=0.3, cmap='gray')
+        # Create vision masks
+        self.camera_vision_mask = self.ax.imshow(np.zeros((self.grid.rows, self.grid.cols)), alpha=0.3, cmap='Blues')
+        self.drone_vision_mask = self.ax.imshow(np.zeros((self.grid.rows, self.grid.cols)), alpha=0.3, cmap='Oranges')
 
     def update_visualization(self):
         # Update the grid data
         self.im.set_data(self.grid.grid)
         
-        # Update the vision mask
-        self.vision_mask.set_data(self.grid.get_vision_mask())
+        # Update the vision masks
+        camera_mask = self.grid.get_vision_mask()
+        drone_mask = self.grid.get_drone_vision_mask()
+        self.camera_vision_mask.set_data(camera_mask)
+        self.drone_vision_mask.set_data(drone_mask)
         
         # Update cell texts
         for i in range(self.grid.rows):
@@ -199,43 +246,69 @@ class Application(tk.Tk):
                 elif cell_type == 4:
                     self.cell_texts[i][j].set_text('')
                     self.cell_texts[i][j].set_color('black')
+                elif cell_type == 5:
+                    self.cell_texts[i][j].set_text('D')
+                    self.cell_texts[i][j].set_color('white')
                 else:
                     self.cell_texts[i][j].set_text('')
 
         self.canvas.draw()
 
-        detections = self.grid.detect_object()
+        camera_detections = self.grid.detect_object()
+        drone_detection = self.detect_drone()
         
-        data = {
-            "Camera": [
-                {
-                    "id": i,
-                    "position": list(pos),
-                    "Detect": detection[0],
-                    "DetectPosition": list(detection[1]) if detection[1] else None
-                } for i, (pos, detection) in enumerate(zip(self.grid.camera_positions, detections))
-            ]
-        }
+        if self.grid.last_detected_position is None:
+            data = {
+                "Camera": [
+                    {
+                        "id": i,
+                        "position": list(pos),
+                        "Detect": detection[0],
+                        "DetectPosition": list(detection[1]) if detection[1] else None
+                    } for i, (pos, detection) in enumerate(zip(self.grid.camera_positions, camera_detections))
+                ]
+            }
+        else:
+            data = {
+                "Drone": drone_detection
+            }
         
         print(f"Sending data to server: {json.dumps(data, indent=2)}")
         
         try:
             response = requests.post('http://localhost:5000/detect', json=data, timeout=0.1)
-            actions = response.json()['Camera']
-            for i, cam in enumerate(actions):
-                status_text = f"Camera {cam['id']}: {cam['action']}"
-                self.status_labels[i].config(text=status_text)
-                if cam['action'] == "alarm":
-                    self.status_labels[i].config(foreground="red")
-                else:
-                    self.status_labels[i].config(foreground="black")
+            result = response.json()
+            
+            if 'Camera' in result:
+                for i, cam in enumerate(result['Camera']):
+                    status_text = f"Camera {cam['id']}: {cam['action']}"
+                    self.status_labels[i].config(text=status_text)
+                    if cam['action'] == "alarm":
+                        self.status_labels[i].config(foreground="red")
+                        self.grid.last_detected_position = cam.get('DetectPosition')
+                    else:
+                        self.status_labels[i].config(foreground="black")
+            
+            if 'Drone' in result:
+                drone_action = result['Drone']['action']
+                drone_direction = result['Drone']['direction']
+                self.drone_status_label.config(text=f"Drone: {drone_action} {drone_direction}")
+                
+                if drone_action == "move":
+                    self.grid.move_drone(drone_direction)
+                elif drone_action == "end_simulation":
+                    self.after_cancel(self.update_id)
+                    self.drone_status_label.config(text="Drone: Simulation Ended", foreground="green")
+                    return
+            
         except requests.exceptions.RequestException as e:
             print(f"Error connecting to server: {e}")
             for label in self.status_labels:
                 label.config(text="Status: Server connection error", foreground="orange")
+            self.drone_status_label.config(text="Drone: Server connection error", foreground="orange")
 
-            # Lógica para colocar o remover objeto
-        if self.grid.object_pos is None:
+        # Lógica para colocar o remover objeto
+        if self.grid.object_pos is None and self.grid.last_detected_position is None:
             # Intentar colocar un nuevo objeto
             object_type = 2  # Fugitivo
             attempts = 0
@@ -247,12 +320,33 @@ class Application(tk.Tk):
                         self.grid.place_object(object_row, object_col, object_type)
                         break
                 attempts += 1
-        else:
+        elif self.grid.object_pos is not None and self.grid.last_detected_position is None:
             # Posibilidad de remover el objeto existente
             if np.random.random() < 0.1:  # 10% de probabilidad de remover
                 self.grid.remove_object()
 
-        self.after(200, self.update_visualization)  # Actualizar cada 0.2 segundos
+        self.update_id = self.after(200, self.update_visualization)  # Actualizar cada 0.2 segundos
+        
+    def detect_drone(self):
+        row, col = self.grid.drone_pos
+        detect = 0
+        detect_position = None
+        
+        for i in range(max(0, row - self.grid.drone_vision_radius), 
+                       min(self.grid.rows, row + self.grid.drone_vision_radius + 1)):
+            for j in range(max(0, col - self.grid.drone_vision_radius), 
+                           min(self.grid.cols, col + self.grid.drone_vision_radius + 1)):
+                if self.grid.grid[i, j] == 2:  # Fugitive
+                    detect = 2
+                    detect_position = [i, j]
+                    break
+            if detect:
+                break
+        
+        return {
+            "position": [row, col],
+            "Detect": detect
+        }
 
 def main():
     grid = Grid(100, 100)
