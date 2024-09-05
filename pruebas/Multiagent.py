@@ -1,6 +1,10 @@
 import agentpy as ap
 from owlready2 import *
 import numpy as np
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Create ontology
 onto = get_ontology("http://example.org/surveillance_ontology.owl")
@@ -81,33 +85,38 @@ class CameraAgent(ap.Agent):
 class DroneAgent(ap.Agent):
     def setup(self):
         self.drone = onto.Drone()
-        start_position = onto.Position()
-        start_position.has_x = 0
-        start_position.has_y = 50
-        self.drone.has_position = start_position
+        self.position_pool = {}
+        for x in range(100):
+            for y in range(100):
+                position = onto.Position()
+                position.has_x = x
+                position.has_y = y
+                self.position_pool[(x, y)] = position
+        
+        self.drone.has_position = self.position_pool[(0, 50)]
         self.drone.has_vision_radius = 20
         self.drone.has_path = ""
-        self.target_position = None  # Almacena la posición objetivo
+        self.target_position = None
 
+    def get_position(self, x, y):
+        return self.position_pool.get((x, y))
     
     def set_target_position(self, x, y):
-        target = onto.Position()
-        target.has_x = x
-        target.has_y = y
-        self.target_position = target
+        self.target_position = self.get_position(x, y)
+        logger.info(f"Drone target set to: ({x}, {y})")
 
     def move(self, grid):
         current_position = self.drone.has_position
+        logger.info(f"Drone current position: ({current_position.has_x}, {current_position.has_y})")
+        
         if self.drone.has_detected_object:
-            # Return to start
-            target = onto.Position()
-            target.has_x = 0
-            target.has_y = 50
+            target = self.get_position(0, 50)
+            logger.info("Drone has detected object, returning to start")
         elif self.target_position:
-            # Move towards the target position
             target = self.target_position
+            logger.info(f"Drone moving towards target: ({target.has_x}, {target.has_y})")
         else:
-            # If no detection and no target, stay in place
+            logger.info("No target set for drone, staying in place")
             return "stay", None
         
         path = self.find_path(grid, current_position, target)
@@ -116,11 +125,12 @@ class DroneAgent(ap.Agent):
             self.drone.has_position = next_position
             self.drone.has_path = ",".join(f"{p.has_x},{p.has_y}" for p in path)
             direction = self.get_direction(current_position, next_position)
+            logger.info(f"Drone moving {direction} to ({next_position.has_x}, {next_position.has_y})")
             return "move", direction
+        logger.info("No path found, drone staying in place")
         return "stay", None
     
     def find_path(self, grid, start, goal):
-        # A* pathfinding algorithm
         def heuristic(a, b):
             return abs(a.has_x - b.has_x) + abs(a.has_y - b.has_y)
         
@@ -130,10 +140,7 @@ class DroneAgent(ap.Agent):
             for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < 100 and 0 <= ny < 100 and grid[nx][ny] != 1:
-                    neighbor = onto.Position()
-                    neighbor.has_x = nx
-                    neighbor.has_y = ny
-                    neighbors.append(neighbor)
+                    neighbors.append(self.get_position(nx, ny))
             return neighbors
         
         open_set = [start]
@@ -178,20 +185,15 @@ class DroneAgent(ap.Agent):
             return None
     
     def detect(self, data, grid):
-        position = onto.Position()
-        position.has_x = data['position'][0]
-        position.has_y = data['position'][1]
+        position = self.get_position(data['position'][0], data['position'][1])
         self.drone.has_position = position
         
         if data['Detect'] > 0:
             detected_object = onto.Fugitive() if data['Detect'] == 2 else onto.Mouse()
-            object_position = onto.Position()
-            object_position.has_x = self.target_position.has_x
-            object_position.has_y = self.target_position.has_y
+            object_position = self.get_position(self.target_position.has_x, self.target_position.has_y)
             detected_object.has_position = object_position
             self.drone.has_detected_object = detected_object
             
-            # Check if drone has returned to start position
             if position.has_x == 0 and position.has_y == 50:
                 return "end_simulation", None
             else:
@@ -204,7 +206,7 @@ class MultiAgentSystem:
     def __init__(self):
         self.model = ap.Model()
         self.setup()
-        self.grid = np.zeros((100, 100))  # Assuming 100x100 grid
+        self.grid = np.zeros((100, 100))
     
     def setup(self):
         self.camera_agents = {}
@@ -221,12 +223,13 @@ class MultiAgentSystem:
                 if camera_id in self.camera_agents:
                     action, detected_object = self.camera_agents[camera_id].detect(camera_info)
                     camera_results.append({"id": camera_id, "action": action})
-                    if detected_object and action == "alarm":
+                    if detected_object:
                         # Set the target position for the drone
-                        self.drone_agent.set_target_position(
-                            detected_object.has_position.has_x,
-                            detected_object.has_position.has_y
-                        )
+                        detect_x, detect_y = camera_info['DetectPosition']
+                        absolute_x = camera_info['position'][0] + detect_x
+                        absolute_y = camera_info['position'][1] + detect_y
+                        self.drone_agent.set_target_position(absolute_x, absolute_y)
+                        logger.info(f"Camera {camera_id} detected object at ({absolute_x}, {absolute_y})")
         
         if drone_data:
             drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid)
