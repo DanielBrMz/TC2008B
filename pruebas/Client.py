@@ -169,7 +169,7 @@ class Application(tk.Tk):
         self.colorbar.set_ticklabels(['Empty', 'Wall', 'Fugitive', 'Camera', 'Central'])
 
         # Create text objects for each cell
-        self.cell_texts = [[self.ax.text(j, i, '', ha='center', va='center', fontweight='bold', fontsize=6) 
+        self.cell_texts = [[self.ax.text(j, i, '', ha='center', va='center', fontweight='bold', fontsize=6)             
                             for j in range(self.grid.cols)] 
                            for i in range(self.grid.rows)]
 
