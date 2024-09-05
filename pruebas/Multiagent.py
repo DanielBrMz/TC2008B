@@ -205,15 +205,19 @@ class MultiAgentSystem:
     
     def process_detection(self, camera_data, drone_data):
         camera_results = []
-        for camera_info in camera_data:
-            camera_id = camera_info['id']
-            if camera_id in self.camera_agents:
-                action, detected_object = self.camera_agents[camera_id].detect(camera_info)
-                camera_results.append({"id": camera_id, "action": action})
-                if detected_object:
-                    self.last_detected_position = detected_object.has_position
+        if camera_data:
+            for camera_info in camera_data:
+                camera_id = camera_info['id']
+                if camera_id in self.camera_agents:
+                    action, detected_object = self.camera_agents[camera_id].detect(camera_info)
+                    camera_results.append({"id": camera_id, "action": action})
+                    if detected_object:
+                        self.last_detected_position = detected_object.has_position
         
-        drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid)
+        if drone_data:
+            drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid)
+        else:
+            drone_action, drone_direction = "idle", None
         
         return camera_results, drone_action, drone_direction
 
