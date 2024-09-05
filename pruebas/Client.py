@@ -77,10 +77,9 @@ class Grid:
             logger.warning(f"Invalid move direction: {direction}")
             return
 
-        # Check if the new position is within the grid bounds
+        # Check if the new position is within the grid bounds and not an obstacle
         if 0 <= new_pos[0] < self.rows - 1 and 0 <= new_pos[1] < self.cols - 1:
-            # Check if there's no obstacle (value 1) in the new position
-            if np.all(self.grid[new_pos[0]:new_pos[0]+2, new_pos[1]:new_pos[1]+2] != 1):
+            if self.grid[new_pos[0], new_pos[1]] != 1:  # 1 represents obstacles
                 self.grid[self.drone_pos[0]:self.drone_pos[0]+2, self.drone_pos[1]:self.drone_pos[1]+2] = 0
                 self.place_drone(new_pos[0], new_pos[1])
                 logger.info(f"Drone moved to {new_pos}")

@@ -97,6 +97,19 @@ class DroneAgent(ap.Agent):
         self.drone.has_vision_radius = 20
         self.drone.has_path = ""
         self.target_position = None
+        self.environment = self.create_environment()
+
+    def create_environment(self):
+        env = np.zeros((100, 100))
+        columns = [
+            (10, 0, 90, 10),   # Column 1 (from top)
+            (30, 10, 100, 10), # Column 2 (from bottom)
+            (60, 10, 100, 10), # Column 3 (from bottom)
+            (80, 0, 90, 10),   # Column 4 (from top)
+        ]
+        for col, start, end, width in columns:
+            env[start:end, col:col+width] = 1
+        return env
 
     def get_position(self, x, y):
         return self.position_pool.get((x, y))
@@ -119,18 +132,18 @@ class DroneAgent(ap.Agent):
             logger.info("No target set for drone, staying in place")
             return "stay", None
         
-        path = self.find_path(grid, current_position, target)
-        if path:
+        path = self.find_path(current_position, target)
+        if path and len(path) > 1:
             next_position = path[1]  # First step in the path
             self.drone.has_position = next_position
             self.drone.has_path = ",".join(f"{p.has_x},{p.has_y}" for p in path)
             direction = self.get_direction(current_position, next_position)
             logger.info(f"Drone moving {direction} to ({next_position.has_x}, {next_position.has_y})")
             return "move", direction
-        logger.info("No path found, drone staying in place")
+        logger.info("No path found or already at target, drone staying in place")
         return "stay", None
     
-    def find_path(self, grid, start, goal):
+    def find_path(self, start, goal):
         def heuristic(a, b):
             return abs(a.has_x - b.has_x) + abs(a.has_y - b.has_y)
         
@@ -139,7 +152,7 @@ class DroneAgent(ap.Agent):
             neighbors = []
             for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                 nx, ny = x + dx, y + dy
-                if 0 <= nx < 100 and 0 <= ny < 100 and grid[nx][ny] != 1:
+                if 0 <= nx < 100 and 0 <= ny < 100 and self.environment[ny, nx] == 0:  # Note the [y, x] indexing
                     neighbors.append(self.get_position(nx, ny))
             return neighbors
         
@@ -168,6 +181,7 @@ class DroneAgent(ap.Agent):
                     if neighbor not in open_set:
                         open_set.append(neighbor)
         
+        logger.warning(f"No path found from ({start.has_x}, {start.has_y}) to ({goal.has_x}, {goal.has_y})")
         return None
     
     def get_direction(self, current, next):
@@ -178,9 +192,9 @@ class DroneAgent(ap.Agent):
         elif dx == -1:
             return "left"
         elif dy == 1:
-            return "down"
+            return "down"  # Changed from "up" to "down"
         elif dy == -1:
-            return "up"
+            return "up"  # Changed from "down" to "up"
         else:
             return None
     
@@ -232,12 +246,12 @@ class MultiAgentSystem:
                         logger.info(f"Camera {camera_id} detected object at ({absolute_x}, {absolute_y})")
         
         if drone_data:
-            drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid)
+            drone_action, drone_direction = self.drone_agent.detect(drone_data, self.drone_agent.environment)
         else:
             drone_action, drone_direction = "idle", None
         
         return camera_results, drone_action, drone_direction
-
+    
 def main():
     mas = MultiAgentSystem()
     # Add test code here if needed
