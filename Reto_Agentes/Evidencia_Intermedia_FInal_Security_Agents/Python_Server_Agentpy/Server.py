@@ -82,61 +82,96 @@ def security_actions():
 
                 try:
                     camera_intance.step(perception_json)
-                    action = dron_intance.step(perception_json)
-                    app.logger.debug(f"Action taken by robot {camera_id}: {action}")
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
+                    action = dron_intance.step()
+                    app.logger.debug(f"Action taken by Dron {dron_id}: {action}")
                     
                     action_parts = action.split('_')
                     action_type = action_parts[0]
                     direction = action_parts[1] if len(action_parts) > 1 else None
 
                     actions.append({
-                        "id": robot_id,
+                        "Executor": "Dron",
+                        "id": dron_id,
                         "action": action_type.capitalize()[0],
                         "direction": direction
                     })
 
-                    app.model.update_environment(robot, action)
+                    #app.model.update_environment(robot, action)
 
-                    app.robot_states[robot_id] = robot.get_state()
-                    app.logger.debug(f"Updated state for robot {robot_id}: {app.robot_states[robot_id]}")
+                    app.Cam_States[camera_id] = camera_id.get_state()
+                    app.logger.debug(f"Updated state for camera {camera_id}: {app.Cam_States[camera_id]}")
+                    
+                    app.Dron_States[dron_id] = dron_id.get_state()
+                    app.logger.debug(f"Updated state for Dron {dron_id}: {app.Dron_States[dron_id]}")
 
                 except Exception as e:
-                    app.logger.error(f"Error in robot.step() for robot {robot_id}: {str(e)}")
+                    app.logger.error(f"Error in robot.step() for robot {camera_id}: {str(e)}")
                     app.logger.error(traceback.format_exc())
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
-                    
+        
+        elif data["agent"] == "Dron": 
+            
+            drons = data["Dron"]
+            for dron_security_per in drons:
+                if 'id' not in dron_security_per or 'Detect' not in dron_security_per:
+                    return jsonify({"error": "Invalid input. Each dron perception must have 'id' and 'Detectpos'."}), 400
 
+                dron_id = dron_security_per['id']
+                perception = dron_security_per['Detect']
+                dron_ubi = dron_security_per['ubi']
+
+                dron_intance = next((r for r in app.model.drons if r.onto_Dron.has_id == dron_id), None)
+                if dron_intance is None:
+                    app.logger.error(f"Dron with id {dron_id} not found.")
+                    continue
+
+                
+                #======================================================
+                stored_state = app.Dron_States.get(dron_id)
+                #======================================================
+                
+                app.logger.debug(f"Processing Dron: {dron_id}, Stored state: {stored_state}")
+
+                perception_json = json.dumps({
+                    "id": dron_id,
+                    "per": perception,
+                    "dron_ubi": dron_ubi  
+                })
+
+                try:
+                    action = dron_intance.step(perception_json, stored_state)
+                    app.logger.debug(f"Action taken by Dron {dron_id}: {action}")
+                    
+                    app.Dron_States[dron_id] = dron_id.get_state()
+                    app.logger.debug(f"Updated state for Dron {dron_id}: {app.Dron_States[dron_id]}")
+                    
+                    stored_state = app.Dron_States.get(dron_id)
+                    if stored_state["perception"] in {1, 2}:
+                        # HEREEEEEEEE: In this section of the code, we can add a conditional statement to handle the case where the Dron finally detects something using computer vision. 
+                        # There are two valid values that indicate the Dron has detected something: 1 or 2, which are part of the perception data. When either of these values 
+                        # is detected, the system will trigger the step method of the Guard agent.
+                        # IMPORTANT: If we use this logic maybe we need that the computational vision of the dron manage the 0 cases. Like until the drone reach or see some animal or 
+                        # person needs to send by the post method from the client the perception of 0(APPARENTLY NOTHING IN THE VIEW).
+                        return 0
+                    
+                    action_parts = action.split('_')
+                    action_type = action_parts[0]
+                    direction = action_parts[1] if len(action_parts) > 1 else None
+
+                    actions.append({
+                        "Executor": "Dron",
+                        "id": dron_id,
+                        "action": action_type.capitalize()[0],
+                        "direction": direction
+                    })
+
+                    #app.model.update_environment(robot, action)
+
+                    
+                    
+                except Exception as e:
+                    app.logger.error(f"Error in robot.step() for robot {camera_id}: {str(e)}")
+                    app.logger.error(traceback.format_exc())          
+                    
         app.model.current_step += 1
 
         if app.model.check_end_condition():
@@ -144,7 +179,25 @@ def security_actions():
             app.model.end()
 
         app.logger.debug(f"Final robot states after this step: {app.robot_states}")
-        return jsonify(actions)
+        return jsonify(actions[-1])
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     except Exception as e:
         app.logger.error(f"An error occurred: {str(e)}")
