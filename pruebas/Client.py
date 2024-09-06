@@ -36,7 +36,7 @@ class Grid:
 
         # Agregar las columnas al grid
         for col, start, end, width in columnas:
-            self.grid[start:end, col:col+width] = 1
+            self.grid[start:end, col:col+width] = 1  # 1 represents walls
 
         # Agregar cámaras
         camara_size = 2
@@ -51,13 +51,12 @@ class Grid:
             else:  # Para las dos últimas columnas (derecha)
                 camara_col = col + width  # Colocar la cámara a la derecha de la columna
             
-            self.grid[camara_row:camara_row+camara_size, camara_col:camara_col+camara_size] = 3
+            self.grid[camara_row:camara_row+camara_size, camara_col:camara_col+camara_size] = 3  # 3 represents cameras
             self.camera_positions.append((camara_row, camara_col))
 
         # Agregar el dron
         self.place_drone(self.drone_pos[0], self.drone_pos[1])
 
-    
     def place_drone(self, row, col):
         self.grid[row:row+2, col:col+2] = 5  # 5 representa al dron
         self.drone_pos = (row, col)
@@ -65,10 +64,10 @@ class Grid:
 
     def move_drone(self, direction):
         row, col = self.drone_pos
-        if direction == "up" and row > 0:
-            new_pos = (row - 1, col)
-        elif direction == "down" and row < self.rows - 2:
+        if direction == "up" and row < self.rows - 2:
             new_pos = (row + 1, col)
+        elif direction == "down" and row > 0:
+            new_pos = (row - 1, col)
         elif direction == "left" and col > 0:
             new_pos = (row, col - 1)
         elif direction == "right" and col < self.cols - 2:
@@ -88,15 +87,23 @@ class Grid:
         else:
             logger.warning(f"Cannot move drone to {new_pos}, out of bounds")
 
-
     def is_valid_position(self, row, col):
-        # Verificar si todas las celdas necesarias para el objeto están disponibles
+        # Check if the position is within the grid bounds
+        if row < 0 or row + self.object_size > self.rows or col < 0 or col + self.object_size > self.cols:
+            return False
+        
+        # Check if the position overlaps with any walls
+        wall_columns = [10, 30, 60, 80]
+        for wall_col in wall_columns:
+            if col <= wall_col < col + self.object_size and wall_col + 10 > col:
+                return False
+
+        # Check if all cells in the object's area are empty
         for i in range(self.object_size):
             for j in range(self.object_size):
-                if row + i >= self.rows or col + j >= self.cols:
-                    return False
                 if self.grid[row + i, col + j] != 0:
                     return False
+        
         return True
 
     def get_drone_vision_mask(self):
@@ -201,7 +208,7 @@ class Application(tk.Tk):
         self.status_frame.pack(pady=10)
 
         self.status_labels = []
-        for i in range(4):  # Asumiendo que hay 4 cámaras
+        for i in range(4):
             label = ttk.Label(self.status_frame, text=f"Camera {i}: Running", font=("Arial", 12))
             label.pack(pady=2)
             self.status_labels.append(label)
@@ -219,51 +226,50 @@ class Application(tk.Tk):
         bounds = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
         norm = plt.cm.colors.BoundaryNorm(bounds, cmap.N)
 
-        self.im = self.ax.imshow(self.grid.grid, cmap=cmap, norm=norm)
+        self.im = self.ax.imshow(self.grid.grid, cmap=cmap, norm=norm, origin='lower')
         self.ax.set_title('Surveillance System Simulation', fontsize=16)
         self.colorbar = self.figure.colorbar(self.im, boundaries=bounds, ticks=[0, 1, 2, 3, 4, 5])
         self.colorbar.set_ticklabels(['Empty', 'Wall', 'Fugitive', 'Camera', 'Central', 'Drone'])
 
-        # Create text objects for each cell
         self.cell_texts = [[self.ax.text(j, i, '', ha='center', va='center', fontweight='bold', fontsize=6)             
                             for j in range(self.grid.cols)] 
-                           for i in range(self.grid.rows)]
+                        for i in range(self.grid.rows)]
 
-        # Create vision masks
-        self.camera_vision_mask = self.ax.imshow(np.zeros((self.grid.rows, self.grid.cols)), alpha=0.3, cmap='Blues')
-        self.drone_vision_mask = self.ax.imshow(np.zeros((self.grid.rows, self.grid.cols)), alpha=0.3, cmap='Oranges')
+        self.camera_vision_mask = self.ax.imshow(np.zeros((self.grid.rows, self.grid.cols)), alpha=0.3, cmap='Blues', origin='lower')
+        self.drone_vision_mask = self.ax.imshow(np.zeros((self.grid.rows, self.grid.cols)), alpha=0.3, cmap='Oranges', origin='lower')
 
     def update_visualization(self):
         # Update the grid data
-        self.im.set_data(self.grid.grid)
+        self.im.set_data(np.flipud(self.grid.grid))
         
         # Update the vision masks
         camera_mask = self.grid.get_vision_mask()
         drone_mask = self.grid.get_drone_vision_mask()
-        self.camera_vision_mask.set_data(camera_mask)
-        self.drone_vision_mask.set_data(drone_mask)
+        self.camera_vision_mask.set_data(np.flipud(camera_mask))
+        self.drone_vision_mask.set_data(np.flipud(drone_mask))
         
         # Update cell texts
         for i in range(self.grid.rows):
             for j in range(self.grid.cols):
                 cell_type = self.grid.grid[i, j]
+                text = self.cell_texts[self.grid.rows - 1 - i][j]
                 if cell_type == 1:
-                    self.cell_texts[i][j].set_text('W')
-                    self.cell_texts[i][j].set_color('black')
+                    text.set_text('W')
+                    text.set_color('black')
                 elif cell_type == 2:
-                    self.cell_texts[i][j].set_text('F')
-                    self.cell_texts[i][j].set_color('white')
+                    text.set_text('F')
+                    text.set_color('white')
                 elif cell_type == 3:
-                    self.cell_texts[i][j].set_text('C')
-                    self.cell_texts[i][j].set_color('white')
+                    text.set_text('C')
+                    text.set_color('white')
                 elif cell_type == 4:
-                    self.cell_texts[i][j].set_text('')
-                    self.cell_texts[i][j].set_color('black')
+                    text.set_text('')
+                    text.set_color('black')
                 elif cell_type == 5:
-                    self.cell_texts[i][j].set_text('D')
-                    self.cell_texts[i][j].set_color('white')
+                    text.set_text('D')
+                    text.set_color('white')
                 else:
-                    self.cell_texts[i][j].set_text('')
+                    text.set_text('')
 
         self.canvas.draw()
 
@@ -275,15 +281,18 @@ class Application(tk.Tk):
                 "Camera": [
                     {
                         "id": i,
-                        "position": list(pos),
+                        "position": [pos[0], self.grid.rows - 1 - pos[1]],  # Flip y-coordinate
                         "Detect": detection[0],
-                        "DetectPosition": list(detection[1]) if detection[1] else None
+                        "DetectPosition": [detection[1][0], self.grid.rows - 1 - detection[1][1]] if detection[1] else None  # Flip y-coordinate
                     } for i, (pos, detection) in enumerate(zip(self.grid.camera_positions, camera_detections))
                 ]
             }
         else:  # drone phase
             data = {
-                "Drone": drone_detection
+                "Drone": {
+                    "position": [drone_detection["position"][0], self.grid.rows - 1 - drone_detection["position"][1]],  # Flip y-coordinate
+                    "Detect": drone_detection["Detect"]
+                }
             }
         
         logger.info(f"Sending data to server: {json.dumps(data, indent=2)}")
@@ -299,7 +308,9 @@ class Application(tk.Tk):
                     if cam['action'] == "alarm":
                         self.status_labels[i].config(foreground="red")
                         self.grid.last_detected_position = cam.get('DetectPosition')
-                        self.simulation_phase = "drone"  # Switch to drone phase
+                        if self.grid.last_detected_position:
+                            self.grid.last_detected_position[1] = self.grid.rows - 1 - self.grid.last_detected_position[1]  # Flip y-coordinate back
+                        self.simulation_phase = "drone"
                         logger.info(f"Switching to drone phase. Target: {self.grid.last_detected_position}")
                     else:
                         self.status_labels[i].config(foreground="black")
@@ -343,7 +354,7 @@ class Application(tk.Tk):
             elif np.random.random() < 0.1:  # 10% de probabilidad de remover
                 self.grid.remove_object()
 
-        self.update_id = self.after(200, self.update_visualization)  # Actualizar cada 0.2 segundos
+        self.update_id = self.after(200, self.update_visualization) 
         
     def detect_drone(self):
         row, col = self.grid.drone_pos

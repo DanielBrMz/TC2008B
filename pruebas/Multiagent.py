@@ -49,7 +49,7 @@ with onto:
         range = [str]
     
     class has_path(FunctionalProperty, DataProperty):
-        domain = [Drone]
+        domain = [Drone]        
         range = [str]
     
     class has_vision_radius(FunctionalProperty, DataProperty):
@@ -220,7 +220,7 @@ class MultiAgentSystem:
     def __init__(self):
         self.model = ap.Model()
         self.setup()
-        self.grid = np.zeros((100, 100))
+        self.grid = self.create_environment()
     
     def setup(self):
         self.camera_agents = {}
@@ -228,6 +228,18 @@ class MultiAgentSystem:
             agent = CameraAgent(self.model)
             self.camera_agents[i] = agent
         self.drone_agent = DroneAgent(self.model)
+
+    def create_environment(self):
+        env = np.zeros((100, 100))
+        columns = [
+            (10, 0, 90, 10),   # Column 1 (from top)
+            (30, 10, 100, 10), # Column 2 (from bottom)
+            (60, 10, 100, 10), # Column 3 (from bottom)
+            (80, 0, 90, 10),   # Column 4 (from top)
+        ]
+        for col, start, end, width in columns:
+            env[start:end, col:col+width] = 1
+        return env
     
     def process_detection(self, camera_data, drone_data):
         camera_results = []
@@ -246,7 +258,7 @@ class MultiAgentSystem:
                         logger.info(f"Camera {camera_id} detected object at ({absolute_x}, {absolute_y})")
         
         if drone_data:
-            drone_action, drone_direction = self.drone_agent.detect(drone_data, self.drone_agent.environment)
+            drone_action, drone_direction = self.drone_agent.detect(drone_data, self.grid)
         else:
             drone_action, drone_direction = "idle", None
         
